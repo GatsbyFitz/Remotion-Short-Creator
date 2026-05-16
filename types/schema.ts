@@ -21,3 +21,27 @@ export type SSEMessage =
   | { type: "phase"; phase: string; progress: number; subtitle?: string }
   | { type: "done"; url: string; size: number }
   | { type: "error"; message: string };
+
+// Transcription types
+export const Caption = z.object({
+  text: z.string(),
+  startMs: z.number(),
+  endMs: z.number(),
+  confidence: z.number().optional(),
+});
+
+export type Caption = z.infer<typeof Caption>;
+
+export const TranscriptData = z.object({
+  captions: z.array(Caption),
+  language: z.string().optional(),
+  duration: z.number(),
+});
+
+export type TranscriptData = z.infer<typeof TranscriptData>;
+
+export const TranscribeRequest = z.object({
+  videoFilename: z.string(), // filename in /input directory
+});
+
+export type TranscribeRequest = z.infer<typeof TranscribeRequest>;

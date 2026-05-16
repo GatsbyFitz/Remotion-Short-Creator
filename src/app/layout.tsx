@@ -19,6 +19,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="https://use.typekit.net/vfa5uyg.css" />
+      </head>
       <body className="bg-background">{children}</body>
     </html>
   );

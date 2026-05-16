@@ -42,3 +42,11 @@ out/
 build
 
 .remotion
+
+input
+images
+out
+
+# media
+*.mp4
+
