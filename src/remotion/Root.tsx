@@ -1,8 +1,13 @@
-import { Composition } from "remotion";
 import { RunningChannel } from "./RunningChannel/Main";
 import { EndScene } from "./EndScene/Main";
+import { CutHalf } from "./testing/Main";
+import { Composition, staticFile } from "remotion";
+import { Stitcher, calculateMetadata } from "./shortCreator/Main";
 
 export const RemotionRoot: React.FC = () => {
+
+  const segments = [{ start: 0, end: 5 }, { start: 6, end: 8 }]; // example
+
   return (
     <>
       <Composition
@@ -25,6 +30,28 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
       />
-    </>
+      <Composition
+        id="CutVideoHalf"
+        component={CutHalf}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={Math.round((10 / 2) * 30)}
+        defaultProps={{
+          src: staticFile("/video.mp4"),
+          half: "first",
+          durationInSeconds: 10,
+        }}
+      />
+      <Composition
+        id="Stitch"
+        component={Stitcher}
+        width={1920}
+        height={1080}
+        fps={30}
+        defaultProps={{ segments }}
+        calculateMetadata={calculateMetadata}
+      />
+      </>
   );
 };

@@ -52,12 +52,10 @@ export async function shortsWorkflow(videoFilename: string) {
 
   console.log("Fetched Remotion instructions:", instructionsData);
 
-  const { renderVideo } = await import('./steps/renderShot');
+  const { createClientPackage } = await import('./steps/createClientPackage');
 
-  await renderVideo(instructionsData);
+  const clientPackage = await createClientPackage(instructionsData);
 
-  console.log("Video rendering completed.");
-
-  return ;
+  return clientPackage;
 }
 

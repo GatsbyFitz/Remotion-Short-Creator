@@ -8,3 +8,4 @@ import { enableTailwind } from "@remotion/tailwind-v4";
 
 Config.setVideoImageFormat("jpeg");
 Config.overrideWebpackConfig(enableTailwind);
+Config.setExperimentalClientSideRenderingEnabled(true);
