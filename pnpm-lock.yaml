@@ -47,6 +47,9 @@ importers:
       '@remotion/tailwind-v4':
         specifier: ^4.0.463
         version: 4.0.463(@remotion/bundler@4.0.463(@swc/core@1.15.3)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(webpack@5.105.0(@swc/core@1.15.3)(postcss@8.5.10))
+      '@remotion/transitions':
+        specifier: ^4.0.465
+        version: 4.0.465(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@remotion/vercel':
         specifier: ^4.0.463
         version: 4.0.463(@vercel/sandbox@1.6.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -2139,6 +2142,9 @@ packages:
   '@remotion/paths@4.0.463':
     resolution: {integrity: sha512-QgCSjFeKqcfoBRHcjDrGDpVbA+eBJ2mIY34hJRdl/ns9wtTQQv+Gygisj7r/WcPlaB2vbbEoqUMZjbEgpL02JQ==}
 
+  '@remotion/paths@4.0.465':
+    resolution: {integrity: sha512-Qg7aa/4aMRjcUyyO60poc/58i748VoEgXRK7FM4BNgJDbBc4Q9IvcLbwm8qTkzbbDhS7VjeDt8u5cUBTc1C7wA==}
+
   '@remotion/player@4.0.463':
     resolution: {integrity: sha512-WTuoXeg19d/bGSMYSj/8lfAmZLaOs7rvrgIpaO1tZKZRUKMKiXx4utMO3waBATjchB2lx1SozCKv8/0as24kTA==}
     peerDependencies:
@@ -2153,6 +2159,12 @@ packages:
 
   '@remotion/shapes@4.0.463':
     resolution: {integrity: sha512-Ot4MWYsK+JzBt7LGnJQyqCC7HHt5xfoBwxBky6/6bo41bHCTq+nv4r6j57evi1UGQyyNPQwHBOMF0p9Qe44O3w==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
+  '@remotion/shapes@4.0.465':
+    resolution: {integrity: sha512-qSTNWB3EDk5wIIHJwPDGmbBisxdORG4AFuWNj1UOiNfbVgTnxRgreWogGyTX8B3buPD7xxGOoHzgIvtDg69/Bg==}
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
@@ -2179,6 +2191,12 @@ packages:
 
   '@remotion/timeline-utils@4.0.463':
     resolution: {integrity: sha512-ZmyzXNyc/ydRSea63QRrZRKLB2+gZXcYbgr79Wg0KGFIEEbaOqtBEC5GDHzHbRAOSYOIiPreCO0Ykn7yn+TFfA==}
+
+  '@remotion/transitions@4.0.465':
+    resolution: {integrity: sha512-SbDv1FobM3iBlnJeym9jJaML6rBCI0khhyGlInC6EbVrcGcAWz4goF8qlx6gQF+u4FI7uwsnEyJQnsgRpY3hkg==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   '@remotion/vercel@4.0.463':
     resolution: {integrity: sha512-DGFQRYlH25BfOmIFY9xxSefGUS3+QN6FRDXjhpzIqEuoNScZK9X3vIci97dpFhv920mnVoQCWVNo3AgeTIQ+ww==}
@@ -5403,6 +5421,12 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
+  remotion@4.0.465:
+    resolution: {integrity: sha512-gcDuIFd6WZLTWUREY0KLll23VOuobC0jE5YztIeOh9GqG8as9LrPKZEHttUiA7McqKNUqaUT2XGq92SHyKvN1Q==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
   require-directory@2.1.1:
     resolution: {integrity: sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==}
     engines: {node: '>=0.10.0'}
@@ -8246,6 +8270,8 @@ snapshots:
 
   '@remotion/paths@4.0.463': {}
 
+  '@remotion/paths@4.0.465': {}
+
   '@remotion/player@4.0.463(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       react: 19.2.3
@@ -8277,6 +8303,12 @@ snapshots:
   '@remotion/shapes@4.0.463(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@remotion/paths': 4.0.463
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  '@remotion/shapes@4.0.465(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@remotion/paths': 4.0.465
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
 
@@ -8355,6 +8387,14 @@ snapshots:
   '@remotion/timeline-utils@4.0.463':
     dependencies:
       mediabunny: 1.45.0
+
+  '@remotion/transitions@4.0.465(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@remotion/paths': 4.0.465
+      '@remotion/shapes': 4.0.465(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      remotion: 4.0.465(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
 
   '@remotion/vercel@4.0.463(@vercel/sandbox@1.6.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
@@ -11995,6 +12035,11 @@ snapshots:
       set-function-name: 2.0.2
 
   remotion@4.0.463(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+
+  remotion@4.0.465(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)

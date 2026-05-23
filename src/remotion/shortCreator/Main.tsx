@@ -1,6 +1,8 @@
 // src/remotion/shortCreator/Main.tsx
 import React from "react";
-import { AbsoluteFill, Sequence, useVideoConfig, staticFile, OffthreadVideo } from "remotion";
+import { useVideoConfig, staticFile, OffthreadVideo } from "remotion";
+import {TransitionSeries, linearTiming} from '@remotion/transitions';
+import { fade } from "@remotion/transitions/fade";
 import type { CalculateMetadataFunction } from "remotion";
 
 type Segment = { start: number; end: number };
@@ -9,30 +11,36 @@ export const Stitcher: React.FC<{ segments: Segment[] }> = ({ segments }) => {
   const { fps } = useVideoConfig();
   const src = staticFile("video.mp4");
 
-  let cursor = 0;
   return (
-    <AbsoluteFill>
+    <TransitionSeries>
       {segments.map((seg, i) => {
-        const trimBefore = seg.start; // seconds
-        const trimAfter = seg.end; // seconds
-        const durFrames = Math.max(1, Math.round((trimAfter - trimBefore) * fps));
-        const from = cursor;
-        cursor += durFrames;
-        
-        return (
-          <Sequence key={i} from={from} durationInFrames={durFrames} layout="none">
-            <AbsoluteFill>
-              <OffthreadVideo
-                src={src}
-                trimBefore={60}
-                trimAfter={120}
-                style={{ objectFit: "cover", width: "100%", height: "100%" }}
-              />
-            </AbsoluteFill>
-          </Sequence>
-        );
+        const trimBefore = Math.floor(seg.start * fps);
+        const trimAfter = Math.floor(seg.end * fps);
+        const durFrames = Math.max(1, trimAfter - trimBefore);
+
+        const seq = ( <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
+            <OffthreadVideo
+              src={src}
+              trimBefore={trimBefore}
+              trimAfter={trimAfter}
+              style={{ objectFit: "cover", width: "100%", height: "100%" }}
+            />
+          </TransitionSeries.Sequence>)
+
+          if (i < segments.length - 1) {
+            return [
+              seq,
+              <TransitionSeries.Transition
+                key={`trans-${i}`}
+                presentation={fade()}
+                timing={linearTiming({ durationInFrames: 15 })}
+              />,
+            ];
+          }
+
+          return [seq];
       })}
-    </AbsoluteFill>
+    </TransitionSeries>
   );
 };
 
