@@ -4,8 +4,8 @@ export async function shortsWorkflow(videoFilename: string) {
 
   console.log("Workflow started for video:", videoFilename);
 
-  //const { transcribeVideoFile } = await import('./steps/transcribeVideoFile');
-  //const { transcriptData } = await transcribeVideoFile(videoFilename);
+  const { transcribeVideoFile } = await import('./steps/transcribeVideoFile');
+  const { transcriptData } = await transcribeVideoFile(videoFilename);
   
 
   //const {uploadTranscript} = await import('./steps/uploadTranscript');
@@ -38,24 +38,24 @@ export async function shortsWorkflow(videoFilename: string) {
 
   //console.log("Remotion instructions saved. URL:", instructions_url);
 
-  const instructions_url = "https://q0yylzbywwxjdvqd.public.blob.vercel-storage.com/instructions/video.txt";
+  //const instructions_url = "https://q0yylzbywwxjdvqd.public.blob.vercel-storage.com/instructions/video.txt";
 
-  const { fetchInstructions } = await import('./steps/fetchInstructions');
+  //const { fetchInstructions } = await import('./steps/fetchInstructions');
   
-  const instructionsResponse = await fetchInstructions(instructions_url);
+  //const instructionsResponse = await fetchInstructions(instructions_url);
 
-  if (!instructionsResponse.ok) {
-    throw new Error(`Failed to fetch instructions from URL: ${instructions_url}`);
-  }
+  //if (!instructionsResponse.ok) {
+  //  throw new Error(`Failed to fetch instructions from URL: ${instructions_url}`);
+  //}
 
-  const instructionsData = await instructionsResponse.json();
+  //const instructionsData = await instructionsResponse.json();
 
-  console.log("Fetched Remotion instructions:", instructionsData);
+  //console.log("Fetched Remotion instructions:", instructionsData);
 
-  const { createClientPackage } = await import('./steps/createClientPackage');
+  //const { createClientPackage } = await import('./steps/createClientPackage');
 
-  const clientPackage = await createClientPackage(instructionsData);
+  //const clientPackage = await createClientPackage(instructionsData);
 
-  return clientPackage;
+  //return clientPackage;
 }
 

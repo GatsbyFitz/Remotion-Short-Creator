@@ -11,6 +11,7 @@ import {
   Mp4OutputFormat,
   MP4,
 } from 'mediabunny';
+import { openAiWhisperApiToCaptions } from "@remotion/openai-whisper";
 
 export async function transcribeVideoFile(videoFilename: string) {
   "use step";
@@ -41,8 +42,9 @@ export async function transcribeVideoFile(videoFilename: string) {
     audio: new Uint8Array(audioBuffer),
     providerOptions: {
       openai: {
+        response_format: 'verbose_json',
         language: 'en',
-        timestampGranularities: ['word', 'segment'],
+        timestampGranularities: ['word'],
       },
     },
   });
@@ -51,5 +53,18 @@ export async function transcribeVideoFile(videoFilename: string) {
 
   const transcriptPath = path.join(inputDir, `${path.parse(videoFilename).name}-transcript.json`);
   fs.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-  return { transcriptPath, transcriptData };
+
+
+  const transcription = transcriptData.responses?.[0]?.body;
+    if (!transcription?.words?.length) {
+      throw new Error('Missing word-level timestamps from Whisper response');
+    }
+
+  const {captions} = openAiWhisperApiToCaptions({transcription});
+
+  const captionsPath = path.join(inputDir, `${path.parse(videoFilename).name}-captions.json`);
+  fs.writeFileSync(captionsPath, JSON.stringify(captions, null, 2));
+
+
+  return { transcriptPath, transcriptData, captions };
 }
