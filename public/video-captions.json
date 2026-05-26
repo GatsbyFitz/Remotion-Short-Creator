@@ -1,0 +1,485 @@
+[
+  {
+    "confidence": null,
+    "endMs": 3200.000047683716,
+    "startMs": 2640.000104904175,
+    "text": "Now,",
+    "timestampMs": 2920.0000762939453
+  },
+  {
+    "confidence": null,
+    "endMs": 3380.000114440918,
+    "startMs": 3200.000047683716,
+    "text": " as",
+    "timestampMs": 3290.000081062317
+  },
+  {
+    "confidence": null,
+    "endMs": 3599.9999046325684,
+    "startMs": 3380.000114440918,
+    "text": " I",
+    "timestampMs": 3490.000009536743
+  },
+  {
+    "confidence": null,
+    "endMs": 3720.0000286102295,
+    "startMs": 3599.9999046325684,
+    "text": " said",
+    "timestampMs": 3659.999966621399
+  },
+  {
+    "confidence": null,
+    "endMs": 4099.999904632568,
+    "startMs": 3720.0000286102295,
+    "text": " before,",
+    "timestampMs": 3909.999966621399
+  },
+  {
+    "confidence": null,
+    "endMs": 4539.999961853027,
+    "startMs": 4280.00020980835,
+    "text": " I",
+    "timestampMs": 4410.0000858306885
+  },
+  {
+    "confidence": null,
+    "endMs": 4659.999847412109,
+    "startMs": 4539.999961853027,
+    "text": " cannot",
+    "timestampMs": 4599.999904632568
+  },
+  {
+    "confidence": null,
+    "endMs": 4940.000057220459,
+    "startMs": 4659.999847412109,
+    "text": " think",
+    "timestampMs": 4799.999952316284
+  },
+  {
+    "confidence": null,
+    "endMs": 5039.999961853027,
+    "startMs": 4940.000057220459,
+    "text": " of",
+    "timestampMs": 4990.000009536743
+  },
+  {
+    "confidence": null,
+    "endMs": 5219.99979019165,
+    "startMs": 5039.999961853027,
+    "text": " a",
+    "timestampMs": 5129.999876022339
+  },
+  {
+    "confidence": null,
+    "endMs": 5360.000133514404,
+    "startMs": 5219.99979019165,
+    "text": " better",
+    "timestampMs": 5289.999961853027
+  },
+  {
+    "confidence": null,
+    "endMs": 5659.999847412109,
+    "startMs": 5360.000133514404,
+    "text": " way",
+    "timestampMs": 5509.999990463257
+  },
+  {
+    "confidence": null,
+    "endMs": 5940.000057220459,
+    "startMs": 5659.999847412109,
+    "text": " to",
+    "timestampMs": 5799.999952316284
+  },
+  {
+    "confidence": null,
+    "endMs": 6079.999923706055,
+    "startMs": 5940.000057220459,
+    "text": " spend",
+    "timestampMs": 6009.999990463257
+  },
+  {
+    "confidence": null,
+    "endMs": 6340.000152587891,
+    "startMs": 6079.999923706055,
+    "text": " your",
+    "timestampMs": 6210.000038146973
+  },
+  {
+    "confidence": null,
+    "endMs": 6699.999809265137,
+    "startMs": 6340.000152587891,
+    "text": " Saturday",
+    "timestampMs": 6519.999980926514
+  },
+   {
+    "confidence": null,
+    "endMs": 9640.999618530273,
+    "startMs": 9240.000343322754,
+    "text": " doing",
+    "timestampMs": 9769.999980926514
+  },
+  {
+    "confidence": null,
+    "endMs": 9899.999618530273,
+    "startMs": 9640.000343322754,
+    "text": " doing",
+    "timestampMs": 9769.999980926514
+  },
+  {
+    "confidence": null,
+    "endMs": 10279.999732971191,
+    "startMs": 9899.999618530273,
+    "text": " something",
+    "timestampMs": 10089.999675750732
+  },
+  {
+    "confidence": null,
+    "endMs": 10760.000228881836,
+    "startMs": 10279.999732971191,
+    "text": " challenging,",
+    "timestampMs": 10519.999980926514
+  },
+  {
+    "confidence": null,
+    "endMs": 11340.00015258789,
+    "startMs": 11119.999885559082,
+    "text": " surrounded",
+    "timestampMs": 11230.000019073486
+  },
+  {
+    "confidence": null,
+    "endMs": 11800.000190734863,
+    "startMs": 11340.00015258789,
+    "text": " by",
+    "timestampMs": 11570.000171661377
+  },
+  {
+    "confidence": null,
+    "endMs": 12199.999809265137,
+    "startMs": 11800.000190734863,
+    "text": " the",
+    "timestampMs": 12000
+  },
+  {
+    "confidence": null,
+    "endMs": 12199.999809265137,
+    "startMs": 12199.999809265137,
+    "text": " wonders",
+    "timestampMs": 12199.999809265137
+  },
+  {
+    "confidence": null,
+    "endMs": 13600.000381469727,
+    "startMs": 12199.999809265137,
+    "text": " of",
+    "timestampMs": 12900.000095367432
+  },
+  {
+    "confidence": null,
+    "endMs": 13600.000381469727,
+    "startMs": 13600.000381469727,
+    "text": " nature.",
+    "timestampMs": 13600.000381469727
+  },
+  {
+    "confidence": null,
+    "endMs": 17100.000381469727,
+    "startMs": 16540.000915527344,
+    "text": " And",
+    "timestampMs": 16820.000648498535
+  },
+  {
+    "confidence": null,
+    "endMs": 17200.000762939453,
+    "startMs": 17100.000381469727,
+    "text": " if",
+    "timestampMs": 17150.00057220459
+  },
+  {
+    "confidence": null,
+    "endMs": 17479.999542236328,
+    "startMs": 17200.000762939453,
+    "text": " I",
+    "timestampMs": 17340.00015258789
+  },
+  {
+    "confidence": null,
+    "endMs": 17739.999771118164,
+    "startMs": 17479.999542236328,
+    "text": " succeeded",
+    "timestampMs": 17609.999656677246
+  },
+  {
+    "confidence": null,
+    "endMs": 18059.999465942383,
+    "startMs": 17739.999771118164,
+    "text": " or",
+    "timestampMs": 17899.999618530273
+  },
+  {
+    "confidence": null,
+    "endMs": 18280.000686645508,
+    "startMs": 18059.999465942383,
+    "text": " failed,",
+    "timestampMs": 18170.000076293945
+  },
+  {
+    "confidence": null,
+    "endMs": 22340.00015258789,
+    "startMs": 19180.00030517578,
+    "text": " let",
+    "timestampMs": 20760.000228881836
+  },
+  {
+    "confidence": null,
+    "endMs": 24219.999313354492,
+    "startMs": 22340.00015258789,
+    "text": " me",
+    "timestampMs": 23279.99973297119
+  },
+  {
+    "confidence": null,
+    "endMs": 24399.999618530273,
+    "startMs": 24219.999313354492,
+    "text": " know",
+    "timestampMs": 24309.999465942383
+  },
+  {
+    "confidence": null,
+    "endMs": 24620.0008392334,
+    "startMs": 24399.999618530273,
+    "text": " in",
+    "timestampMs": 24510.000228881836
+  },
+  {
+    "confidence": null,
+    "endMs": 25020.000457763672,
+    "startMs": 24620.0008392334,
+    "text": " the",
+    "timestampMs": 24820.000648498535
+  },
+  {
+    "confidence": null,
+    "endMs": 25020.000457763672,
+    "startMs": 25020.000457763672,
+    "text": " comments",
+    "timestampMs": 25020.000457763672
+  },
+  {
+    "confidence": null,
+    "endMs": 25420.000076293945,
+    "startMs": 25020.000457763672,
+    "text": " section.",
+    "timestampMs": 25220.00026702881
+  },
+  {
+    "confidence": null,
+    "endMs": 26180.00030517578,
+    "startMs": 25860.000610351562,
+    "text": " If",
+    "timestampMs": 26020.000457763672
+  },
+  {
+    "confidence": null,
+    "endMs": 26180.00030517578,
+    "startMs": 26180.00030517578,
+    "text": " you",
+    "timestampMs": 26180.00030517578
+  },
+  {
+    "confidence": null,
+    "endMs": 26280.000686645508,
+    "startMs": 26180.00030517578,
+    "text": " enjoyed",
+    "timestampMs": 26230.000495910645
+  },
+  {
+    "confidence": null,
+    "endMs": 26799.999237060547,
+    "startMs": 26280.000686645508,
+    "text": " the",
+    "timestampMs": 26539.999961853027
+  },
+  {
+    "confidence": null,
+    "endMs": 26799.999237060547,
+    "startMs": 26799.999237060547,
+    "text": " video,",
+    "timestampMs": 26799.999237060547
+  },
+  {
+    "confidence": null,
+    "endMs": 27479.999542236328,
+    "startMs": 27079.999923706055,
+    "text": " please",
+    "timestampMs": 27279.99973297119
+  },
+  {
+    "confidence": null,
+    "endMs": 27639.999389648438,
+    "startMs": 27479.999542236328,
+    "text": " like",
+    "timestampMs": 27559.999465942383
+  },
+  {
+    "confidence": null,
+    "endMs": 27860.000610351562,
+    "startMs": 27639.999389648438,
+    "text": " and",
+    "timestampMs": 27750
+  },
+  {
+    "confidence": null,
+    "endMs": 28200.000762939453,
+    "startMs": 27860.000610351562,
+    "text": " subscribe.",
+    "timestampMs": 28030.000686645508
+  },
+  {
+    "confidence": null,
+    "endMs": 31840.00015258789,
+    "startMs": 30979.999542236328,
+    "text": " And",
+    "timestampMs": 31409.99984741211
+  },
+  {
+    "confidence": null,
+    "endMs": 32159.99984741211,
+    "startMs": 31840.00015258789,
+    "text": " maybe",
+    "timestampMs": 32000
+  },
+  {
+    "confidence": null,
+    "endMs": 32659.99984741211,
+    "startMs": 32159.99984741211,
+    "text": " I'll",
+    "timestampMs": 32409.99984741211
+  },
+  {
+    "confidence": null,
+    "endMs": 32880.001068115234,
+    "startMs": 32659.99984741211,
+    "text": " catch",
+    "timestampMs": 32770.00045776367
+  },
+  {
+    "confidence": null,
+    "endMs": 33419.99816894531,
+    "startMs": 32880.001068115234,
+    "text": " you",
+    "timestampMs": 33149.99961853027
+  },
+  {
+    "confidence": null,
+    "endMs": 33779.998779296875,
+    "startMs": 33419.99816894531,
+    "text": " at",
+    "timestampMs": 33599.998474121094
+  },
+  {
+    "confidence": null,
+    "endMs": 33880.001068115234,
+    "startMs": 33779.998779296875,
+    "text": " the",
+    "timestampMs": 33829.999923706055
+  },
+  {
+    "confidence": null,
+    "endMs": 34119.998931884766,
+    "startMs": 33880.001068115234,
+    "text": " next",
+    "timestampMs": 34000
+  },
+  {
+    "confidence": null,
+    "endMs": 34419.99816894531,
+    "startMs": 34119.998931884766,
+    "text": " Ultra.",
+    "timestampMs": 34269.99855041504
+  },
+  {
+    "confidence": null,
+    "endMs": 38040.000915527344,
+    "startMs": 37979.99954223633,
+    "text": " Cheers",
+    "timestampMs": 38010.000228881836
+  },
+  {
+    "confidence": null,
+    "endMs": 39180.00030517578,
+    "startMs": 38040.000915527344,
+    "text": " and",
+    "timestampMs": 38610.00061035156
+  },
+  {
+    "confidence": null,
+    "endMs": 39360.00061035156,
+    "startMs": 39180.00030517578,
+    "text": " thank",
+    "timestampMs": 39270.00045776367
+  },
+  {
+    "confidence": null,
+    "endMs": 39459.999084472656,
+    "startMs": 39360.00061035156,
+    "text": " you",
+    "timestampMs": 39409.99984741211
+  },
+  {
+    "confidence": null,
+    "endMs": 40459.999084472656,
+    "startMs": 39459.999084472656,
+    "text": " for",
+    "timestampMs": 39959.999084472656
+  },
+  {
+    "confidence": null,
+    "endMs": 40459.999084472656,
+    "startMs": 40459.999084472656,
+    "text": " watching.",
+    "timestampMs": 40459.999084472656
+  },
+  {
+    "confidence": null,
+    "endMs": 46680.00030517578,
+    "startMs": 45819.99969482422,
+    "text": " Cheers",
+    "timestampMs": 46250
+  },
+  {
+    "confidence": null,
+    "endMs": 47279.998779296875,
+    "startMs": 46680.00030517578,
+    "text": " and",
+    "timestampMs": 46979.99954223633
+  },
+  {
+    "confidence": null,
+    "endMs": 47479.99954223633,
+    "startMs": 47279.998779296875,
+    "text": " thank",
+    "timestampMs": 47379.9991607666
+  },
+  {
+    "confidence": null,
+    "endMs": 47580.00183105469,
+    "startMs": 47479.99954223633,
+    "text": " you",
+    "timestampMs": 47530.00068664551
+  },
+  {
+    "confidence": null,
+    "endMs": 48080.00183105469,
+    "startMs": 47580.00183105469,
+    "text": " for",
+    "timestampMs": 47830.00183105469
+  },
+  {
+    "confidence": null,
+    "endMs": 48080.00183105469,
+    "startMs": 48080.00183105469,
+    "text": " watching.",
+    "timestampMs": 48080.00183105469
+  }
+]

@@ -1,59 +1,44 @@
 // src/remotion/shortCreator/Main.tsx
-import React, { useCallback, useCallback, useEffect, useMemo, useState } from "react";
-import { useVideoConfig, staticFile, OffthreadVideo, useDelayRender, cancelRender, continueRender, AbsoluteFill, useCurrentFrame } from "remotion";
-import {TransitionSeries, linearTiming} from '@remotion/transitions';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AbsoluteFill,
+  OffthreadVideo,
+  staticFile,
+  useCurrentFrame,
+  useDelayRender,
+  useVideoConfig,
+} from "remotion";
+import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import type { CalculateMetadataFunction } from "remotion";
-import {openAiWhisperApiToCaptions} from '@remotion/openai-whisper';
-import {createTikTokStyleCaptions} from '@remotion/captions';
-import type {Caption} from '@remotion/captions';
+import { createTikTokStyleCaptions } from "@remotion/captions";
+import type { Caption } from "@remotion/captions";
 
 type Segment = { start: number; end: number };
+type Props = { segments: Segment[] };
+type TikTokPage = ReturnType<typeof createTikTokStyleCaptions>["pages"][number];
 
-
-
-export const Stitcher: React.FC<{ segments: Segment[] }> = ({ segments }) => {
+export const ShortCreator: React.FC<Props> = ({ segments }) => {
   const { fps } = useVideoConfig();
   const src = staticFile("video.mp4");
   const [captions, setCaptions] = useState<Caption[] | null>(null);
-  const {delayRender, continueRender, cancelRender} = useDelayRender();
+  const { delayRender, continueRender, cancelRender } = useDelayRender();
   const [handle] = useState(() => delayRender());
-
-  const SWITCH_CAPTIONS_EVERY_MS = 3000;
 
   const fetchCaptions = useCallback(async () => {
     try {
-      const res = await fetch(staticFile("video-transcript.json")); // public file
-      const data = await res.json();
-      console.log("Fetched transcript data:", data);
-
-      const transcription = data.responses?.[0]?.body ?? null;
-      if (!transcription) throw new Error('Missing Whisper body');
-
-      const {captions} = openAiWhisperApiToCaptions({transcription});
-      console.log("Formatted captions:", captions);
-      setCaptions(captions);
+      const response = await fetch(staticFile("video-captions.json"));
+      const data = await response.json();
+      setCaptions(data);
       continueRender(handle);
-    } catch (err) {
-      console.error("Error fetching captions:", err);
-      cancelRender(handle);
+    } catch (e) {
+      cancelRender(e);
     }
-  },[continueRender, cancelRender, handle]);
+  }, [continueRender, cancelRender, handle]);
 
   useEffect(() => {
     fetchCaptions();
   }, [fetchCaptions]);
-
-
-  const {pages} = useMemo(() => {
-  return createTikTokStyleCaptions({
-    captions,
-    combineTokensWithinMilliseconds: 1200,
-  });
-}, [captions]);
-
-  console.log("Generated caption pages:", pages);
-
 
   return (
     <TransitionSeries>
@@ -62,41 +47,34 @@ export const Stitcher: React.FC<{ segments: Segment[] }> = ({ segments }) => {
         const trimAfter = Math.floor(seg.end * fps);
         const durFrames = Math.max(1, trimAfter - trimBefore);
 
-        const seq = ( <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
+        const sequence = (
+          <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
             <OffthreadVideo
               src={src}
               trimBefore={trimBefore}
               trimAfter={trimAfter}
               style={{ objectFit: "cover", width: "100%", height: "100%" }}
             />
-            {pages.length > 0 &&
-              pages.map((page, idx) => {
-                // page.startMs is absolute ms within video; offset into this segment:
-                const pageStartRelMs = page.startMs - seg.start * 1000;
-                const pageEndRelMs = (pages[idx + 1]?.startMs ?? (page.startMs + SWITCH_CAPTIONS_EVERY_MS)) - seg.start * 1000;
-                // skip pages that don't overlap this segment
-                if (pageEndRelMs <= 0 || pageStartRelMs >= (durFrames / fps) * 1000) return null;
-                const startFrame = Math.max(0, Math.floor((pageStartRelMs / 1000) * fps));
-                const endFrame = Math.min(durFrames, Math.ceil((pageEndRelMs / 1000) * fps));
-                return endFrame > startFrame ? (
-                  <CaptionPage key={`cap-${i}-${idx}`} page={page} startFrameInSequence={startFrame} />
-                ) : null;
-              })
-            }
-          </TransitionSeries.Sequence>)
+            <CaptionTrack
+              captions={captions ?? []}
+              segmentStartMs={seg.start * 1000}
+              segmentEndMs={seg.end * 1000}
+            />
+          </TransitionSeries.Sequence>
+        );
+  
+        if (i < segments.length - 1) {
+          return [
+            sequence,
+            <TransitionSeries.Transition
+              key={`trans-${i}`}
+              presentation={fade()}
+              timing={linearTiming({ durationInFrames: 5 })}
+            />,
+          ];
+        }
 
-          if (i < segments.length - 1) {
-            return [
-              seq,
-              <TransitionSeries.Transition
-                key={`trans-${i}`}
-                presentation={fade()}
-                timing={linearTiming({ durationInFrames: 15 })}
-              />,
-            ];
-          }
-
-          return [seq];
+        return [sequence];
       })}
     </TransitionSeries>
   );
@@ -120,22 +98,54 @@ export const calculateMetadata: CalculateMetadataFunction<Props> = async ({ prop
   };
 };
 
+const HIGHLIGHT_COLOR = "#39E508";
 
-const HIGHLIGHT_COLOR = '#39E508';
-
-const CaptionPage: React.FC<{page: TikTokPage; startFrameInSequence: number}> = ({page, startFrameInSequence}) => {
+const CaptionTrack: React.FC<{
+  captions: Caption[];
+  segmentStartMs: number;
+  segmentEndMs: number;
+}> = ({ captions, segmentStartMs, segmentEndMs }) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const frameInPage = frame - startFrameInSequence;
-  const absoluteTimeMs = page.startMs + (frameInPage / fps) * 1000;
+  const { fps } = useVideoConfig();
+  const absoluteTimeMs = segmentStartMs + (frame / fps) * 1000;
+
+  const pages = useMemo(() => {
+    const segmentCaptions = captions.filter((caption) => {
+      return caption.endMs > segmentStartMs && caption.startMs < segmentEndMs;
+    });
+
+    return createTikTokStyleCaptions({
+      captions: segmentCaptions,
+      combineTokensWithinMilliseconds: 1000,
+    }).pages;
+  }, [captions, segmentStartMs, segmentEndMs]);
+
+  const activePageIndex = pages.findIndex((page, index) => {
+    const pageEndMs = page.tokens[page.tokens.length - 1]?.toMs ?? page.startMs;
+    const nextStartMs = pages[index + 1]?.startMs ?? pageEndMs;
+
+    return (
+      absoluteTimeMs >= page.startMs &&
+      absoluteTimeMs < Math.min(nextStartMs, segmentEndMs)
+    );
+  });
+
+  if (activePageIndex === -1) {
+    return null;
+  }
+
+  const page = pages[activePageIndex];
+  const visibleTokens = page.tokens.filter((token) => {
+    return token.fromMs < segmentEndMs && token.toMs > segmentStartMs;
+  });
 
   return (
-    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
-      <div style={{fontSize: 80, fontWeight: 'bold', textAlign: 'center', whiteSpace: 'pre'}}>
-        {page.tokens.map((token) => {
+    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
+      <div style={{ fontSize: 80, fontWeight: "bold", textAlign: "center", whiteSpace: "pre" }}>
+        {visibleTokens.map((token) => {
           const isActive = token.fromMs <= absoluteTimeMs && token.toMs > absoluteTimeMs;
           return (
-            <span key={token.fromMs} style={{color: isActive ? HIGHLIGHT_COLOR : 'white'}}>
+            <span key={token.fromMs} style={{ color: isActive ? HIGHLIGHT_COLOR : "white" }}>
               {token.text}
             </span>
           );

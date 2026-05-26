@@ -2,7 +2,7 @@ import { RunningChannel } from "./RunningChannel/Main";
 import { EndScene } from "./EndScene/Main";
 import { CutHalf } from "./testing/Main";
 import { Composition, staticFile } from "remotion";
-import { Stitcher, calculateMetadata } from "./shortCreator/Main";
+import { ShortCreator, calculateMetadata } from "./shortCreator/Main";
 
 export const RemotionRoot: React.FC = () => {
 
@@ -44,8 +44,8 @@ export const RemotionRoot: React.FC = () => {
         }}
       />
       <Composition
-        id="Stitch"
-        component={Stitcher}
+        id="ShortCreator"
+        component={ShortCreator}
         width={1920}
         height={1080}
         defaultProps={{ segments }}
