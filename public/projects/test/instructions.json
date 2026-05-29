@@ -1,0 +1,12 @@
+{
+  "shorts": [
+    {
+      "id": "short-1",
+      "segments": [{ "start": 0, "end": 5 }, { "start": 6, "end": 8 }]
+    },
+    {
+      "id": "short-2",
+      "segments": [{ "start": 0, "end": 2 }, { "start": 4, "end": 6 }]
+    }
+  ]
+}
