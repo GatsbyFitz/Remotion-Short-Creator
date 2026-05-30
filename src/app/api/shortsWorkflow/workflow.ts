@@ -1,11 +1,11 @@
 
-export async function shortsWorkflow(videoFilename: string) {
+export async function shortsWorkflow(project: string) {
   'use workflow';
 
-  console.log("Workflow started for video:", videoFilename);
+  console.log("Workflow started for project:", project);
 
   const { transcribeVideoFile } = await import('./steps/transcribeVideoFile');
-  const { transcriptData } = await transcribeVideoFile(videoFilename);
+  await transcribeVideoFile(project);
   
 
   //const {uploadTranscript} = await import('./steps/uploadTranscript');
@@ -27,8 +27,8 @@ export async function shortsWorkflow(videoFilename: string) {
 
   // console.log("Transcription completed. Transcript path:", transcriptDataFetched);
 
-  //const { generateRemotionInstructions } = await import('./steps/generateInstructions');
-  //const { RemotionInstructions } = await generateRemotionInstructions(transcriptDataFetched);
+  const { generateRemotionInstructions } = await import('./steps/generateInstructions');
+  await generateRemotionInstructions(project);
 
   //console.log("Generated Remotion instructions:", RemotionInstructions);
 

@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "remotion": "remotion studio",
     "create-snapshot": "bun create-snapshot.ts",
-    "render": "remotion render"
+    "render": "remotion render",
+    "ready": "remotion studio & next dev"
+
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.63",

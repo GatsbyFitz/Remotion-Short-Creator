@@ -13,14 +13,23 @@ import {
 } from 'mediabunny';
 import { openAiWhisperApiToCaptions } from "@remotion/openai-whisper";
 
-export async function transcribeVideoFile(videoFilename: string) {
+export async function transcribeVideoFile(project: string) {
   "use step";
   
-  const inputDir = path.join(process.cwd(), 'input');
-  const videoPath = path.join(inputDir, videoFilename);
-  if (!fs.existsSync(videoPath)) throw new Error(`Video not found: ${videoFilename}`);
+  const inputDir = path.join(process.cwd(), 'public', 'projects');
 
-  const outPath = path.join(inputDir, "audio", `${path.parse(videoFilename).name}-audio.mp4`);
+  const projectDir = path.join(inputDir, project);
+  const videoFile = fs
+    .readdirSync(projectDir)
+    .find((file) => file.toLowerCase().endsWith(".mp4"));
+
+  if (!videoFile) {
+    throw new Error(`No .mp4 file found in: ${projectDir}`);
+  }
+
+  const videoPath = path.join(projectDir, videoFile);
+
+  const outPath = path.join(projectDir, `audio.mp4`);
   const input = new Input({ source: new FilePathSource(videoPath), formats: [MP4] });
   const output = new Output({ format: new Mp4OutputFormat(), target: new FilePathTarget(outPath) });
 
@@ -51,20 +60,19 @@ export async function transcribeVideoFile(videoFilename: string) {
 
   const transcriptData = JSON.parse(JSON.stringify(result));
 
-  const transcriptPath = path.join(inputDir, `${path.parse(videoFilename).name}-transcript.json`);
-  fs.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
-
-
   const transcription = transcriptData.responses?.[0]?.body;
     if (!transcription?.words?.length) {
       throw new Error('Missing word-level timestamps from Whisper response');
     }
 
+  const transcriptPath = path.join(projectDir, `transcript.json`);
+  fs.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+
   const {captions} = openAiWhisperApiToCaptions({transcription});
 
-  const captionsPath = path.join(inputDir, `${path.parse(videoFilename).name}-captions.json`);
+  const captionsPath = path.join(projectDir, `video-captions.json`);
   fs.writeFileSync(captionsPath, JSON.stringify(captions, null, 2));
 
 
-  return { transcriptPath, transcriptData, captions };
+  return;
 }

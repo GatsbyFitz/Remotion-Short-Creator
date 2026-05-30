@@ -7,7 +7,7 @@ type Short = { id: string; segments: Segment[] };
 type Project = { name: string; shorts: Short[]; renderCount: number };
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Origin": "http://localhost:3001",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };

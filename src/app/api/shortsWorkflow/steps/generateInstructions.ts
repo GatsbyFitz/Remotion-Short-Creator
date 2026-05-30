@@ -1,8 +1,18 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import fs from "fs";
 
-export async function generateRemotionInstructions(transcriptData: any) {
+export async function generateRemotionInstructions(project: string) {
   "use step";
+
+
+  const transcriptPath = `public/projects/${project}/transcript.json`;
+
+  if (!fs.existsSync(transcriptPath)) {
+    throw new Error(`Transcript file not found at path: ${transcriptPath}`);
+  }
+
+  const transcriptData = JSON.parse(fs.readFileSync(transcriptPath, "utf-8"));
 
   const InstructionsSchema = z.object({
     shots: z.array(
@@ -37,7 +47,7 @@ export async function generateRemotionInstructions(transcriptData: any) {
 
   try {
     const result = await generateText({
-      model: "anthropic/claude-sonnet-4.5",
+      model: "anthropic/claude-opus-4.8",
       prompt,
       output: Output.object({ schema: InstructionsSchema }),
     });

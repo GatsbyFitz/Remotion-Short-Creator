@@ -17,7 +17,7 @@ type Project = {
 
 async function fetchProjects(): Promise<Project[]> {
   try {
-    const response = await fetch("http://localhost:3001/api/findProjects");
+    const response = await fetch("http://localhost:3000/api/findProjects");
     if (!response.ok) {
       throw new Error(`Failed to fetch projects: ${response.statusText}`);
     }

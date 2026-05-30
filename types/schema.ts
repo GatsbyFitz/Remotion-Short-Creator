@@ -40,8 +40,4 @@ export const TranscriptData = z.object({
 
 export type TranscriptData = z.infer<typeof TranscriptData>;
 
-export const TranscribeRequest = z.object({
-  videoFilename: z.string(), // filename in /input directory
-});
 
-export type TranscribeRequest = z.infer<typeof TranscribeRequest>;

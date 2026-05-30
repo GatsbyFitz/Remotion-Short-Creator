@@ -1,0 +1,86 @@
+[
+  {
+    "confidence": null,
+    "endMs": 4099.999904632568,
+    "startMs": 3619.999885559082,
+    "text": "It's",
+    "timestampMs": 3859.999895095825
+  },
+  {
+    "confidence": null,
+    "endMs": 4179.999828338623,
+    "startMs": 4099.999904632568,
+    "text": " going",
+    "timestampMs": 4139.999866485596
+  },
+  {
+    "confidence": null,
+    "endMs": 4179.999828338623,
+    "startMs": 4179.999828338623,
+    "text": " to",
+    "timestampMs": 4179.999828338623
+  },
+  {
+    "confidence": null,
+    "endMs": 4280.00020980835,
+    "startMs": 4179.999828338623,
+    "text": " be",
+    "timestampMs": 4230.000019073486
+  },
+  {
+    "confidence": null,
+    "endMs": 4400.000095367432,
+    "startMs": 4280.00020980835,
+    "text": " a",
+    "timestampMs": 4340.000152587891
+  },
+  {
+    "confidence": null,
+    "endMs": 4519.999980926514,
+    "startMs": 4400.000095367432,
+    "text": " real",
+    "timestampMs": 4460.000038146973
+  },
+  {
+    "confidence": null,
+    "endMs": 4860.000133514404,
+    "startMs": 4519.999980926514,
+    "text": " adventure",
+    "timestampMs": 4690.000057220459
+  },
+  {
+    "confidence": null,
+    "endMs": 5639.999866485596,
+    "startMs": 4860.000133514404,
+    "text": " today.",
+    "timestampMs": 5250
+  },
+  {
+    "confidence": null,
+    "endMs": 7300.000190734863,
+    "startMs": 6820.000171661377,
+    "text": " Meeting",
+    "timestampMs": 7060.00018119812
+  },
+  {
+    "confidence": null,
+    "endMs": 7579.999923706055,
+    "startMs": 7300.000190734863,
+    "text": " our",
+    "timestampMs": 7440.000057220459
+  },
+  {
+    "confidence": null,
+    "endMs": 7760.000228881836,
+    "startMs": 7579.999923706055,
+    "text": " target",
+    "timestampMs": 7670.000076293945
+  },
+  {
+    "confidence": null,
+    "endMs": 8000,
+    "startMs": 7760.000228881836,
+    "text": " now.",
+    "timestampMs": 7880.000114440918
+  }
+]
