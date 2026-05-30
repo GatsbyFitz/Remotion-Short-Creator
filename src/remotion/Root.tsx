@@ -47,24 +47,22 @@ export const RemotionRoot: React.FC = () => {
     <>
       {projects
       .flatMap((project) =>
-        project.shorts.flatMap((short) =>
-          short.segments.map((segment) => ({
-            project,
-            segment,
-          })),
-        ),
+        project.shorts.map((short) => ({
+          project,
+          short,
+        })),
       )
-      .map(({ project, segment }, index) => (
+      .map(({ project, short }, index) => (
         <Composition
-          key={`${project.name}-${index}`}
-          id={`ShortCreator-${project.name}-${index}`}
+          key={`${project.name}-${short.id ?? index}`}
+          id={`ShortCreator-${project.name}-${short.id ?? index}`}
           component={ShortCreator}
           width={1080}
           height={1920}
           calculateMetadata={calculateMetadata}
           defaultProps={{
-            segments: [segment],
-            project,
+            segments: short.segments,
+            project: project.name,
           }}
         />
       ))}

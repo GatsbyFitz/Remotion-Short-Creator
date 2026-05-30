@@ -16,19 +16,18 @@ import { createTikTokStyleCaptions } from "@remotion/captions";
 import type { Caption } from "@remotion/captions";
 
 type Segment = { start: number; end: number };
-type Props = { segments: Segment[] };
-type TikTokPage = ReturnType<typeof createTikTokStyleCaptions>["pages"][number];
+type Props = { segments: Segment[], project: string };
 
-export const ShortCreator: React.FC<Props> = ({ segments }) => {
+export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
   const { fps } = useVideoConfig();
-  const src = staticFile("video.mp4");
+  const src = staticFile(`projects/${project}/video.mp4`);
   const [captions, setCaptions] = useState<Caption[] | null>(null);
   const { delayRender, continueRender, cancelRender } = useDelayRender();
   const [handle] = useState(() => delayRender());
 
   const fetchCaptions = useCallback(async () => {
     try {
-      const response = await fetch(staticFile("video-captions.json"));
+      const response = await fetch(staticFile(`projects/${project}/video-captions.json`));
       const data = await response.json();
       setCaptions(data);
       continueRender(handle);
