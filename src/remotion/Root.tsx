@@ -1,5 +1,6 @@
 import { Composition } from "remotion";
 import { ShortCreator, calculateMetadata } from "./shortCreator/Main";
+import { GaugeSchema, Gauge, calculateGaugeMetadata  } from "./Gauge/Main";
 import React, { useEffect, useState } from "react";
 
 
@@ -36,17 +37,24 @@ export const RemotionRoot: React.FC = () => {
     void fetchProjects().then(setProjects);
   }, []);
 
-  if (!projects) {
-    return null;
-  }
-
-
-  console.log("Found projects:", projects);
-
   return (
     <>
-      {projects
-      .flatMap((project) =>
+      <Composition
+        id="Gauge"
+        component={Gauge}
+        width={1080}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        schema={GaugeSchema}
+        calculateMetadata={calculateGaugeMetadata}
+        defaultProps={{
+          count: 500,
+          topLabel: "PUSH UPS",
+          bottomLabel: "IN A SESSION",
+        }}
+      />
+      {projects?.flatMap((project) =>
         project.shorts.map((short) => ({
           project,
           short,
