@@ -1,22 +1,44 @@
-// src/remotion/shortCreator/Main.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AbsoluteFill,
   Img,
-  OffthreadVideo,
   staticFile,
   useCurrentFrame,
   useDelayRender,
   useVideoConfig,
 } from "remotion";
+import { Video } from "@remotion/media";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import type { CalculateMetadataFunction } from "remotion";
 import { createTikTokStyleCaptions } from "@remotion/captions";
 import type { Caption } from "@remotion/captions";
+import { grayscale } from "@remotion/effects/grayscale";
+import { invert } from "@remotion/effects/invert";
+import { scale } from "@remotion/effects/scale";
 
-type Segment = { start: number; end: number };
-type Props = { segments: Segment[], project: string };
+type SegmentEffect = "grayscale" | "invert" | "scale";
+
+type Segment = {
+  start: number;
+  end: number;
+  effect?: SegmentEffect;
+};
+
+type Props = { segments: Segment[]; project: string };
+
+const getEffects = (effect?: SegmentEffect) => {
+  switch (effect) {
+    case "grayscale":
+      return [grayscale({})];
+    case "invert":
+      return [invert({})];
+    case "scale":
+      return[scale({scale: 1.3})];
+    default:
+      return [];
+  }
+};
 
 export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
   const { fps } = useVideoConfig();
@@ -27,14 +49,16 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
 
   const fetchCaptions = useCallback(async () => {
     try {
-      const response = await fetch(staticFile(`projects/${project}/video-captions.json`));
+      const response = await fetch(
+        staticFile(`projects/${project}/video-captions.json`)
+      );
       const data = await response.json();
       setCaptions(data);
       continueRender(handle);
     } catch (e) {
       cancelRender(e);
     }
-  }, [continueRender, cancelRender, handle]);
+  }, [continueRender, cancelRender, handle, project]);
 
   useEffect(() => {
     fetchCaptions();
@@ -46,28 +70,32 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
         const trimBefore = Math.floor(seg.start * fps);
         const trimAfter = Math.floor(seg.end * fps);
         const durFrames = Math.max(1, trimAfter - trimBefore);
+        const effects = getEffects(seg.effect);
 
         const sequence = (
           <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
             <AbsoluteFill style={{ backgroundColor: "#020617" }}>
-            <OffthreadVideo
-              src={src}
-              trimBefore={trimBefore}
-              trimAfter={trimAfter}
-              style={{  width: "100%",
-                height: "85%",
-                objectFit: "cover",
-                margin: "auto", }}
-            />
-            <CaptionTrack
-              captions={captions ?? []}
-              segmentStartMs={seg.start * 1000}
-              segmentEndMs={seg.end * 1000}
-            />
+              <Video
+                src={src}
+                _experimentalEffects={effects}
+                trimBefore={trimBefore}
+                trimAfter={trimAfter}
+                style={{
+                  width: "100%",
+                  height: "85%",
+                  margin: "auto",
+                }}
+                objectFit="cover"
+              />
+              <CaptionTrack
+                captions={captions ?? []}
+                segmentStartMs={seg.start * 1000}
+                segmentEndMs={seg.end * 1000}
+              />
             </AbsoluteFill>
           </TransitionSeries.Sequence>
         );
-  
+
         if (i < segments.length - 1) {
           return [
             sequence,
@@ -88,15 +116,27 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
   );
 };
 
-export const calculateMetadata: CalculateMetadataFunction<Props> = async ({ props }) => {
+export const calculateMetadata: CalculateMetadataFunction<Props> = async ({
+  props,
+}) => {
   const fps = 30;
   const normalized = (props.segments ?? [])
-    .map((s) => ({ start: Number(s.start), end: Number(s.end) }))
-    .filter((s) => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start);
+    .map((s) => ({
+      start: Number(s.start),
+      end: Number(s.end),
+      effect: s.effect,
+    }))
+    .filter(
+      (s) =>
+        Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start
+    );
 
   const totalFrames = Math.max(
     1,
-    normalized.reduce((acc, s) => acc + Math.max(1, Math.round((s.end - s.start) * fps)), 0)
+    normalized.reduce(
+      (acc, s) => acc + Math.max(1, Math.round((s.end - s.start) * fps)),
+      0
+    )
   );
 
   return {
@@ -105,7 +145,6 @@ export const calculateMetadata: CalculateMetadataFunction<Props> = async ({ prop
     durationInFrames: totalFrames,
   };
 };
-
 
 const CaptionTrack: React.FC<{
   captions: Caption[];
@@ -147,12 +186,25 @@ const CaptionTrack: React.FC<{
   });
 
   return (
-    <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: 10  }}>
+    <AbsoluteFill
+      style={{
+        justifyContent: "flex-end",
+        alignItems: "center",
+        paddingBottom: 10,
+      }}
+    >
       <div style={{ fontSize: 80, fontWeight: "bold", textAlign: "center", whiteSpace: "pre" }}>
         {visibleTokens.map((token) => {
           const isActive = token.fromMs <= absoluteTimeMs && token.toMs > absoluteTimeMs;
           return (
-            <span key={token.fromMs} style={{ color: isActive ? "#FF37A1" : "#E1FF62", textShadow: "2px 2px 4px rgba(0,0,0,0.5)", WebkitTextStroke: "1px black" }}>
+            <span
+              key={token.fromMs}
+              style={{
+                color: isActive ? "#FF37A1" : "#E1FF62",
+                textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+                WebkitTextStroke: "1px black",
+              }}
+            >
               {token.text}
             </span>
           );
@@ -161,7 +213,6 @@ const CaptionTrack: React.FC<{
     </AbsoluteFill>
   );
 };
-
 
 const EndScreen: React.FC = () => {
   return (

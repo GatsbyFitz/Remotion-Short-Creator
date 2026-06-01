@@ -15,33 +15,34 @@ export async function generateRemotionInstructions(project: string) {
   const transcriptData = JSON.parse(fs.readFileSync(transcriptPath, "utf-8"));
 
   const InstructionsSchema = z.object({
-    shots: z.array(
+    shorts: z.array(
       z.object({
-        startSec: z.number(),
-        endSec: z.number(),
-        caption: z.string().optional(),
-        edit: z.enum(["cut", "trim", "zoom", "pan"]).optional(),
-        transition: z.enum(["cut", "fade", "crossfade"]).optional(),
-        notes: z.string().optional(),
+        id: z.string(),
+        segments: z.array(
+          z.object({
+            start: z.number(),
+            end: z.number(),
+            effect: z.enum(["grayscale", "invert", "scale"]).optional(),
+          })
+        ),
       })
     ),
-    metadata: z
-      .object({
-        sourceFilename: z.string().optional(),
-        compositionId: z.string().optional(),
-        fps: z.number().optional(),
-      })
-      .optional(),
   });
+
+  const availableEffects = [
+    "grayscale",
+    "invert",
+    "scale",
+  ];
+
 
   const prompt = `Given the transcript, produce object matching the Instructions schema. 
   
   Requirements: 
-    - Create shorts that perform on social: ideal length 30-45s (max 60s).
-    - Each shot: 6-20s; include startSec,endSec,caption (1-2 lines), edit, transition, notes.
-    - First shot must include a 'hook' within first 3 seconds.
-    - Keep captions short, use present-tense, include suggested on-screen text.
-    - Max shots: 8.
+    - Create shorts that perform on social: ideal length 30-45s (max 55s). A short is made up of one or more segments from the transcript.
+    - Each segment: 6-20s; include start,end.
+    - Suggest effects for each segment based on the content to amplify the message. Use a max of 3. Available effects: ${availableEffects.join(", ")}. Only include an effect if it meaningfully enhances the content.
+    - Max shorts: 7.
   
     Transcript: ${JSON.stringify(transcriptData)}`;
 

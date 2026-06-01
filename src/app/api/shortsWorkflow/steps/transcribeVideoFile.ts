@@ -19,9 +19,11 @@ export async function transcribeVideoFile(project: string) {
   const inputDir = path.join(process.cwd(), 'public', 'projects');
 
   const projectDir = path.join(inputDir, project);
+  
   const videoFile = fs
-    .readdirSync(projectDir)
-    .find((file) => file.toLowerCase().endsWith(".mp4"));
+  .readdirSync(projectDir)
+  .filter((file) => file.toLowerCase() !== "audio.mp4")
+  .find((file) => file.toLowerCase().endsWith(".mp4"));
 
   if (!videoFile) {
     throw new Error(`No .mp4 file found in: ${projectDir}`);

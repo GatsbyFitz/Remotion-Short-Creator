@@ -11,7 +11,6 @@
     "create-snapshot": "bun create-snapshot.ts",
     "render": "remotion render",
     "ready": "remotion studio & next dev"
-
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.63",
@@ -20,6 +19,7 @@
     "@mediabunny/mp3-encoder": "^1.44.2",
     "@remotion/captions": "^4.0.463",
     "@remotion/cli": "^4.0.463",
+    "@remotion/effects": "^4.0.470",
     "@remotion/google-fonts": "^4.0.463",
     "@remotion/install-whisper-cpp": "^4.0.463",
     "@remotion/media": "^4.0.463",

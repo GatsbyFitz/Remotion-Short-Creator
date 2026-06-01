@@ -1,6 +1,7 @@
 import { Composition } from "remotion";
 import { ShortCreator, calculateMetadata } from "./shortCreator/Main";
 import { GaugeSchema, Gauge, calculateGaugeMetadata  } from "./Gauge/Main";
+import { TwoYearTimeline, calculateTwoYearTimelineMetadata } from "./TwoYearTimeline/Main";
 import React, { useEffect, useState } from "react";
 
 
@@ -29,16 +30,29 @@ async function fetchProjects(): Promise<Project[]> {
 }
 }
 
-
 export const RemotionRoot: React.FC = () => {
-    const [projects, setProjects] = useState<Project[] | null>(null);
+  const [projects, setProjects] = useState<Project[] | null>(null);
 
   useEffect(() => {
     void fetchProjects().then(setProjects);
+    console.log("Fetched projects:", projects);
   }, []);
+
+  if (projects === null) {
+    return null;
+  }
 
   return (
     <>
+      <Composition
+        id="TwoYearTimeline"
+        component={TwoYearTimeline}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateTwoYearTimelineMetadata}
+      />
       <Composition
         id="Gauge"
         component={Gauge}
@@ -54,13 +68,12 @@ export const RemotionRoot: React.FC = () => {
           bottomLabel: "IN A SESSION",
         }}
       />
-      {projects?.flatMap((project) =>
+      {projects.flatMap((project) =>
         project.shorts.map((short) => ({
           project,
           short,
         })),
-      )
-      .map(({ project, short }, index) => (
+      ).map(({ project, short }, index) => (
         <Composition
           key={`${project.name}-${short.id ?? index}`}
           id={`ShortCreator-${project.name}-${short.id ?? index}`}
