@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import type { NextPage } from "next";
 
 type Project = {
+  id: string;
   name: string;
   shorts: Array<{
     id: string;
@@ -24,9 +25,11 @@ type Project = {
 
 const Home: NextPage = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [projectName, setProjectName] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [progressBytes, setProgressBytes] = useState(0);
 
   const loadProjects = async () => {
     try {
@@ -43,10 +46,10 @@ const Home: NextPage = () => {
     void loadProjects();
   }, []);
 
-
   const createProject = async () => {
     setLoading(true);
     setError("");
+    setProgressBytes(0);
 
     if (!file) {
       setError("Please select an MP4 file to upload.");
@@ -54,23 +57,81 @@ const Home: NextPage = () => {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
+    const chunkSize = 64 * 1024 * 1024;
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    const trimmedProjectName = projectName.trim();
+    const fallbackProjectName = file.name.replace(/\.[^.]+$/, "").trim();
+    const resolvedProjectName = trimmedProjectName || fallbackProjectName || "Untitled Project";
 
     try {
-      const response = await fetch("/api/createProject", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create project");
+      const startResponse = await fetch("/api/upload/start", { method: "POST" });
+      if (!startResponse.ok) {
+        const errorData = await startResponse.json();
+        throw new Error(errorData.error || "Failed to start upload");
       }
 
-      await response.json();
+      const { uploadId, projectId } = (await startResponse.json()) as {
+        uploadId: string;
+        projectId: string;
+      };
+
+      let uploaded = 0;
+      const concurrency = Math.min(4, totalChunks);
+      let nextIndex = 0;
+
+      const uploadChunk = async (index: number) => {
+        const start = index * chunkSize;
+        const end = Math.min(file.size, start + chunkSize);
+        const chunk = file.slice(start, end);
+
+        const chunkResponse = await fetch(
+          `/api/upload/chunk?uploadId=${uploadId}&index=${index}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: chunk,
+          },
+        );
+
+        if (!chunkResponse.ok) {
+          const errorData = await chunkResponse.json();
+          throw new Error(errorData.error || `Failed to upload chunk ${index}`);
+        }
+
+        uploaded += chunk.size;
+        setProgressBytes(uploaded);
+      };
+
+      const workers = Array.from({ length: concurrency }, async () => {
+        while (nextIndex < totalChunks) {
+          const index = nextIndex;
+          nextIndex += 1;
+          await uploadChunk(index);
+        }
+      });
+
+      await Promise.all(workers);
+
+      const completeResponse = await fetch("/api/upload/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploadId,
+          projectId,
+          totalChunks,
+          projectName: resolvedProjectName,
+        }),
+      });
+
+      if (!completeResponse.ok) {
+        const errorData = await completeResponse.json();
+        throw new Error(errorData.error || "Failed to finalize upload");
+      }
+
+      await completeResponse.json();
       await loadProjects();
       setFile(null);
+      setProjectName("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create project");
     } finally {
@@ -101,7 +162,7 @@ const Home: NextPage = () => {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-6 py-10 text-slate-100">
@@ -131,6 +192,22 @@ const Home: NextPage = () => {
             <CardContent className="space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-200">
+                  Project Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="My Next Short"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className="text-slate-100 placeholder:text-slate-500"
+                />
+                <p className="text-xs text-slate-400">
+                  This name is saved in metadata.json for the project and shown in the list.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-200">
                   Upload MP4
                 </label>
                 <Input
@@ -152,6 +229,23 @@ const Home: NextPage = () => {
                   <div className="mt-2 break-all text-sm text-slate-100">
                     {file.name}
                   </div>
+                </div>
+              ) : null}
+
+              {projectName.trim() ? (
+                <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
+                  <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
+                    Project Name
+                  </div>
+                  <div className="mt-2 break-all text-sm text-slate-100">
+                    {projectName.trim()}
+                  </div>
+                </div>
+              ) : null}
+
+              {loading && file ? (
+                <div className="text-xs text-slate-400">
+                  Uploading: {(progressBytes / (1024 * 1024)).toFixed(2)} MB / {(file.size / (1024 * 1024)).toFixed(2)} MB
                 </div>
               ) : null}
 
@@ -226,11 +320,22 @@ const Home: NextPage = () => {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
+                    Project ID: {project.id}
+                  </div>
+                  <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
                     {project.shorts.length} shorts loaded from instructions.json
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => void runWorkflow(project.name)} disabled={loading}>
-                    {loading ? "Running..." : "Run Shorts Workflow"}
-                  </Button>
+                  <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
+                    <Button variant="outline" size="sm" onClick={() => void runWorkflow(project.id)} disabled={loading}>
+                      {loading ? "Running..." : "Run Shorts Workflow"}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
+                      View Instructions
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => fetch(`/api/deleteProject?provisionId=${project.id}`, { method: "DELETE" }).then(() => window.location.reload())}>
+                      Delete Project
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

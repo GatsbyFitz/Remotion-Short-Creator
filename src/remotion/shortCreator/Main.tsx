@@ -10,12 +10,18 @@ import {
 import { Video } from "@remotion/media";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
+import { slide } from "@remotion/transitions/slide";
+import { wipe } from "@remotion/transitions/wipe";
+import { flip } from "@remotion/transitions/flip";
+import { iris } from "@remotion/transitions/iris";
+import { clockWipe } from "@remotion/transitions/clock-wipe";
 import type { CalculateMetadataFunction } from "remotion";
 import { createTikTokStyleCaptions } from "@remotion/captions";
 import type { Caption } from "@remotion/captions";
 import { grayscale } from "@remotion/effects/grayscale";
 import { invert } from "@remotion/effects/invert";
 import { scale } from "@remotion/effects/scale";
+import { BRAND_FONTS } from "../theme";
 
 type SegmentEffect = "grayscale" | "invert" | "scale";
 
@@ -23,6 +29,7 @@ type Segment = {
   start: number;
   end: number;
   effect?: SegmentEffect;
+  transition?: string;
 };
 
 type Props = { segments: Segment[]; project: string };
@@ -39,6 +46,25 @@ const getEffects = (effect?: SegmentEffect) => {
       return [];
   }
 };
+
+const getTransition = (transition?: string) => {
+  switch (transition) {
+    case "fade":
+      return fade();
+    case "slide":
+      return slide();
+    case "wipe":
+      return wipe();
+    case "flip":
+      return flip();
+    case "iris":
+      return iris();
+    case "clockWipe":
+      return clockWipe();
+    default:
+      return fade();
+  }
+}
 
 export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
   const { fps } = useVideoConfig();
@@ -71,6 +97,7 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
         const trimAfter = Math.floor(seg.end * fps);
         const durFrames = Math.max(1, trimAfter - trimBefore);
         const effects = getEffects(seg.effect);
+        const transition = getTransition(seg.transition);
 
         const sequence = (
           <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
@@ -101,7 +128,7 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
             sequence,
             <TransitionSeries.Transition
               key={`trans-${i}`}
-              presentation={fade()}
+              presentation={transition}
               timing={linearTiming({ durationInFrames: 5 })}
             />,
           ];
@@ -125,6 +152,7 @@ export const calculateMetadata: CalculateMetadataFunction<Props> = async ({
       start: Number(s.start),
       end: Number(s.end),
       effect: s.effect,
+      transition: s.transition,
     }))
     .filter(
       (s) =>
@@ -203,6 +231,7 @@ const CaptionTrack: React.FC<{
                 color: isActive ? "#FF37A1" : "#E1FF62",
                 textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
                 WebkitTextStroke: "1px black",
+                fontFamily: BRAND_FONTS.secondary,
               }}
             >
               {token.text}
@@ -224,6 +253,7 @@ const EndScreen: React.FC = () => {
         color: "white",
         textAlign: "center",
         padding: 80,
+        fontFamily: BRAND_FONTS.primary,
       }}
     >
       <div style={{ maxWidth: 900, textAlign: "center" }}>

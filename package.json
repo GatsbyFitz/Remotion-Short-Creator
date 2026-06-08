@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "remotion": "remotion studio",
+    "remotion": "remotion studio --port 3001",
     "create-snapshot": "bun create-snapshot.ts",
     "render": "remotion render",
-    "ready": "remotion studio & next dev"
+    "ready": "remotion studio --port 3001 & next dev -p 3000"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.63",

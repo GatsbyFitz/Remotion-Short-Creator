@@ -48,88 +48,66 @@ export const Gauge: React.FC<PushUpGaugeProps> = ({
   const dashOffset = circumference * (1 - progress);
 
   return (
-    <AbsoluteFill className="flex items-center justify-center text-white" style={{ backgroundColor: "transparent" }}>
-      <div className="relative flex w-full max-w-4xl items-center justify-center px-10 text-center drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
-        <svg width="760" height="760" viewBox="0 0 760 760" role="img" aria-label="Circular progress gauge">
-          <circle
-            cx="380"
-            cy="380"
-            r={radius}
-            fill="none"
-            stroke={BRAND_COLORS.yellow}
-            strokeWidth="28"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-            transform="rotate(-90 380 380)"
-          />
-        </svg>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
+    <AbsoluteFill>
+      <svg width="100%" height="100%" viewBox="0 0 1080 1080" role="img" aria-label="Circular progress gauge">
+        <circle
+          cx="540"
+          cy="540"
+          r={radius}
+          fill="none"
+          stroke={BRAND_COLORS.black}
+          strokeOpacity="0.14"
+          strokeWidth="28"
+        />
+        <circle
+          cx="540"
+          cy="540"
+          r={radius}
+          fill="none"
+          stroke={BRAND_COLORS.yellow}
+          strokeWidth="28"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          transform="rotate(-90 540 540)"
+        />
+        <text
+          x="540"
+          y="500"
+          textAnchor="middle"
+          fontFamily={BRAND_FONTS.primary}
+          fontSize="180"
+          fontWeight="700"
+          letterSpacing="-4"
+          fill={BRAND_COLORS.yellow}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                color: BRAND_COLORS.yellow,
-                fontFamily: BRAND_FONTS.primary,
-                fontSize: 180,
-                fontWeight: 900,
-                letterSpacing: -4,
-                lineHeight: 0.85,
-                textAlign: "center",
-                textShadow: "0 12px 24px rgba(0, 0, 0, 0.55)",
-              }}
-            >
-              {value}
-            </div>
-
-            <div
-              style={{
-                color: BRAND_COLORS.yellow,
-                fontFamily: BRAND_FONTS.secondary,
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: 4,
-                lineHeight: 1,
-                textAlign: "center",
-                textShadow: "0 8px 16px rgba(0, 0, 0, 0.45)",
-              }}
-            >
-              {topLabel}
-            </div>
-            <div
-              style={{
-                color: BRAND_COLORS.yellow,
-                fontFamily: BRAND_FONTS.secondary,
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: 4,
-                lineHeight: 1,
-                textAlign: "center",
-                textShadow: "0 8px 16px rgba(0, 0, 0, 0.45)",
-              }}
-            >
-              {bottomLabel}
-            </div>
-          </div>
-        </div>
-      </div>
+          {value}
+        </text>
+        <text
+          x="540"
+          y="582"
+          textAnchor="middle"
+          fontFamily={BRAND_FONTS.secondary}
+          fontSize="28"
+          fontWeight="800"
+          letterSpacing="4"
+          fill={BRAND_COLORS.yellow}
+        >
+          {topLabel}
+        </text>
+        <text
+          x="540"
+          y="624"
+          textAnchor="middle"
+          fontFamily={BRAND_FONTS.secondary}
+          fontSize="28"
+          fontWeight="800"
+          letterSpacing="4"
+          fill={BRAND_COLORS.yellow}
+        >
+          {bottomLabel}
+        </text>
+      </svg>
     </AbsoluteFill>
   );
 };
@@ -140,10 +118,10 @@ export const calculateGaugeMetadata = async () => {
     durationInFrames: 150,
     width: 1080,
     height: 1080,
-    defaultCodec: "prores",
-    defaultVideoImageFormat: "png",
-    defaultPixelFormat: "yuva444p10le",
-    defaultProResProfile: "4444",
-  };
+    defaultCodec: "prores" as const,
+    defaultVideoImageFormat: "png" as const,
+    defaultPixelFormat: "yuva444p10le" as const,
+    defaultProResProfile: "4444" as const,
+  } as const;
 };
 

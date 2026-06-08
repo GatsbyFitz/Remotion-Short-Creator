@@ -1,7 +1,14 @@
 import { Composition } from "remotion";
 import { ShortCreator, calculateMetadata } from "./shortCreator/Main";
+import { PushUpTypes, calculateMetadata as calculatePushUpTypesMetadata } from "./PushUpTypes/Main";
+import { ThreeBlocksReveal, calculateMetadata as calculateThreeBlocksRevealMetadata } from "./ThreeBlocksReveal/Main";
+import { PushUpBlocksReveal, calculateMetadata as calculatePushUpBlocksRevealMetadata } from "./PushUpBlocksReveal/Main";
+import { BlocksTimesThree, calculateMetadata as calculateBlocksTimesThreeMetadata } from "./BlocksTimesThree/Main";
 import { GaugeSchema, Gauge, calculateGaugeMetadata  } from "./Gauge/Main";
 import { TwoYearTimeline, calculateTwoYearTimelineMetadata } from "./TwoYearTimeline/Main";
+import { FallingQuestionMarks, calculateMetadata as calculateFallingQuestionMarksMetadata } from "./FallingQuestionMarks/Main";
+import { MaxThreshold80, calculateMetadata as calculateMaxThreshold80Metadata } from "./MaxThreshold80/Main";
+import { PushUp100BlocksBuild, calculateMetadata as calculatePushUp100BlocksBuildMetadata } from "./PushUp100BlocksBuild/Main";
 import React, { useEffect, useState } from "react";
 
 
@@ -11,6 +18,7 @@ type Short = {
   segments: Segment[];
 };
 type Project = {
+  id: string;
   name: string;
   shorts: Short[];
   renderCount: number;
@@ -31,19 +39,51 @@ async function fetchProjects(): Promise<Project[]> {
 }
 
 export const RemotionRoot: React.FC = () => {
-  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     void fetchProjects().then(setProjects);
     console.log("Fetched projects:", projects);
   }, []);
 
-  if (projects === null) {
-    return null;
-  }
-
   return (
     <>
+      <Composition
+        id="BlocksTimesThree"
+        component={BlocksTimesThree}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateBlocksTimesThreeMetadata}
+      />
+      <Composition
+        id="PushUpBlocksReveal"
+        component={PushUpBlocksReveal}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculatePushUpBlocksRevealMetadata}
+      />
+      <Composition
+        id="ThreeBlocksReveal"
+        component={ThreeBlocksReveal}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateThreeBlocksRevealMetadata}
+      />
+      <Composition
+        id="PushUpTypes"
+        component={PushUpTypes}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculatePushUpTypesMetadata}
+      />
       <Composition
         id="TwoYearTimeline"
         component={TwoYearTimeline}
@@ -68,6 +108,33 @@ export const RemotionRoot: React.FC = () => {
           bottomLabel: "IN A SESSION",
         }}
       />
+      <Composition
+        id="FallingQuestionMarks"
+        component={FallingQuestionMarks}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateFallingQuestionMarksMetadata}
+      />
+      <Composition
+        id="MaxThreshold"
+        component={MaxThreshold80}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateMaxThreshold80Metadata}
+      />
+      <Composition
+        id="PushUp100BlocksBuild"
+        component={PushUp100BlocksBuild}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={300}
+        calculateMetadata={calculatePushUp100BlocksBuildMetadata}
+      />
       {projects.flatMap((project) =>
         project.shorts.map((short) => ({
           project,
@@ -75,15 +142,15 @@ export const RemotionRoot: React.FC = () => {
         })),
       ).map(({ project, short }, index) => (
         <Composition
-          key={`${project.name}-${short.id ?? index}`}
-          id={`ShortCreator-${project.name}-${short.id ?? index}`}
+          key={`${project.id}-${short.id ?? index}`}
+          id={`ShortCreator-${project.id}-${short.id ?? index}`}
           component={ShortCreator}
           width={1080}
           height={1920}
           calculateMetadata={calculateMetadata}
           defaultProps={{
             segments: short.segments,
-            project: project.name,
+            project: project.id,
           }}
         />
       ))}

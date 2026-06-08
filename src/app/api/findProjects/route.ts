@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 type Segment = { start: number; end: number };
 type Short = { id: string; segments: Segment[] };
-type Project = { name: string; shorts: Short[]; renderCount: number };
+type Project = { id: string; name: string; shorts: Short[]; renderCount: number };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "http://localhost:3001",
@@ -27,11 +27,17 @@ export async function GET() {
     .readdirSync(projectsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
-      const projectName = entry.name;
-      const instructionsPath = path.join(projectsDir, projectName, "instructions.json");
+      const projectId = entry.name;
+      const projectDir = path.join(projectsDir, projectId);
+      const instructionsPath = path.join(projectDir, "instructions.json");
+      const metadataPath = path.join(projectDir, "metadata.json");
+      const metadata = fs.existsSync(metadataPath)
+        ? JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as { projectName?: string }
+        : null;
+      const projectName = metadata?.projectName?.trim() || projectId;
 
       if (!fs.existsSync(instructionsPath)) {
-        return { name: projectName, shorts: [], renderCount: 0 };
+        return { id: projectId, name: projectName, shorts: [], renderCount: 0 };
       }
 
       const raw = fs.readFileSync(instructionsPath, "utf-8");
@@ -39,6 +45,7 @@ export async function GET() {
       const shorts = instructions.shorts ?? [];
 
       return {
+        id: projectId,
         name: projectName,
         shorts,
         renderCount: shorts.length,
