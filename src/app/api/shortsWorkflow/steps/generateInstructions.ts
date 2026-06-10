@@ -13,6 +13,10 @@ export async function generateRemotionInstructions(project: string) {
   }
 
   const transcriptData = JSON.parse(fs.readFileSync(transcriptPath, "utf-8"));
+  
+  const segments = Array.isArray(transcriptData?.segments)
+  ? transcriptData.segments
+  : [];
 
   const InstructionsSchema = z.object({
     shorts: z.array(
@@ -46,7 +50,7 @@ export async function generateRemotionInstructions(project: string) {
     - Suggest effects for each segment based on the content to amplify the message. Use a max of 3. Available effects: ${availableEffects.join(", ")}. Only include an effect if it meaningfully enhances the content.
     - Choose a transition between segments, default to fade. Available transitions: fade, slide, wipe, flip, iris, clockWipe.
   
-    Transcript: ${JSON.stringify(transcriptData)}`;
+    Transcript: ${JSON.stringify(segments)}`;
 
   try {
     const result = await generateText({

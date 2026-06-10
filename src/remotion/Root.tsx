@@ -1,4 +1,4 @@
-import { Composition } from "remotion";
+import { Composition, Folder } from "remotion";
 import { ShortCreator, calculateMetadata } from "./shortCreator/Main";
 import { PushUpTypes, calculateMetadata as calculatePushUpTypesMetadata } from "./PushUpTypes/Main";
 import { ThreeBlocksReveal, calculateMetadata as calculateThreeBlocksRevealMetadata } from "./ThreeBlocksReveal/Main";
@@ -48,6 +48,7 @@ export const RemotionRoot: React.FC = () => {
 
   return (
     <>
+    <Folder name="Visuals">
       <Composition
         id="BlocksTimesThree"
         component={BlocksTimesThree}
@@ -135,6 +136,8 @@ export const RemotionRoot: React.FC = () => {
         durationInFrames={300}
         calculateMetadata={calculatePushUp100BlocksBuildMetadata}
       />
+      </Folder>
+      <Folder name="Shorts">
       {projects.flatMap((project) =>
         project.shorts.map((short) => ({
           project,
@@ -154,6 +157,7 @@ export const RemotionRoot: React.FC = () => {
           }}
         />
       ))}
+      </Folder>
     </>
   );
 };

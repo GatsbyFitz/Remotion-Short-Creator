@@ -53,6 +53,7 @@ Use the Remotion best-practices skill as the domain guide for all composition wo
 - Fade-ins should usually run for the first 30 frames.
 - Subtitle reveals should start around frame 20 unless the content requires a different cadence.
 - Use spring animations for movement that should feel organic and elegant.
+- use interpolate and spring from Remotion for all motion; do not use CSS transitions or Tailwind animation classes.
 - Use smooth easing and restrained motion; avoid jarring cuts unless the edit demands it.
 - Keep interpolation behavior explicit: use `extrapolateRight: "clamp"` for opacity and fade-ins, and `extrapolateRight: "extend"` only when continuous motion is intended.
 - Do not use CSS transitions or Tailwind animation classes for Remotion motion.
