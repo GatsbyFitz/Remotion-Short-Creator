@@ -190,27 +190,22 @@ const CaptionTrack: React.FC<{
 
     return createTikTokStyleCaptions({
       captions: segmentCaptions,
-      combineTokensWithinMilliseconds: 800,
+      combineTokensWithinMilliseconds: 500,
     }).pages;
   }, [captions, segmentStartMs, segmentEndMs]);
 
-  const activePageIndex = pages.findIndex((page, index) => {
-    const pageEndMs = page.tokens[page.tokens.length - 1]?.toMs ?? page.startMs;
-    const nextStartMs = pages[index + 1]?.startMs ?? pageEndMs;
+  const activePage = pages.find((page) => {
+    const pageEndMs = page.startMs + page.durationMs;
 
-    return (
-      absoluteTimeMs >= page.startMs &&
-      absoluteTimeMs < Math.min(nextStartMs, segmentEndMs)
-    );
+    return absoluteTimeMs >= page.startMs && absoluteTimeMs < pageEndMs;
   });
 
-  if (activePageIndex === -1) {
+  if (!activePage) {
     return null;
   }
 
-  const page = pages[activePageIndex];
-  const visibleTokens = page.tokens.filter((token) => {
-    return token.fromMs < segmentEndMs && token.toMs > segmentStartMs;
+  const activeToken = activePage.tokens.find((token) => {
+    return absoluteTimeMs >= token.fromMs && absoluteTimeMs < token.toMs;
   });
 
   return (
@@ -222,11 +217,14 @@ const CaptionTrack: React.FC<{
       }}
     >
       <div style={{ fontSize: 80, fontWeight: "bold", textAlign: "center", whiteSpace: "pre" }}>
-        {visibleTokens.map((token) => {
-          const isActive = token.fromMs <= absoluteTimeMs && token.toMs > absoluteTimeMs;
+        {activePage.tokens.map((token) => {
+          const isActive = activeToken
+            ? token.fromMs === activeToken.fromMs && token.toMs === activeToken.toMs
+            : false;
+
           return (
             <span
-              key={token.fromMs}
+              key={`${token.fromMs}-${token.toMs}`}
               style={{
                 color: isActive ? "#FF37A1" : "#E1FF62",
                 textShadow: "2px 2px 4px rgba(0,0,0,0.5)",

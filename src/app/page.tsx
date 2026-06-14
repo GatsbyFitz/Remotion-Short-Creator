@@ -139,7 +139,7 @@ const Home: NextPage = () => {
     }
   };
 
-  const runWorkflow = async (projectName: string) => {
+  const runWorkflow = async (projectName: string, action?: string) => {
     setLoading(true);
     setError("");
 
@@ -147,7 +147,7 @@ const Home: NextPage = () => {
       const response = await fetch("/api/shortsWorkflow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project: `${projectName}` }),
+        body: JSON.stringify({ project: `${projectName}`, action }),
       });
 
       if (!response.ok) {
@@ -328,6 +328,9 @@ const Home: NextPage = () => {
                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
                     <Button variant="outline" size="sm" onClick={() => void runWorkflow(project.id)} disabled={loading}>
                       {loading ? "Running..." : "Run Shorts Workflow"}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => void runWorkflow(project.id, 'regenerateInstructions')} disabled={loading}>
+                      {loading ? "Running..." : "Regenerate Instructions"}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
                       View Instructions

@@ -18,6 +18,12 @@ export async function generateRemotionInstructions(project: string) {
   ? transcriptData.segments
   : [];
 
+  const cleansegments = segments.map((segment: { start: number; end: number; text: string }) => ({
+    start: Math.round(segment.start * 1000) / 1000,
+    end: Math.round(segment.end * 1000) / 1000,
+    text: segment.text.replace(/\./g, "").replace(/\s+/g, " ").trim(),
+  }));
+
   const InstructionsSchema = z.object({
     shorts: z.array(
       z.object({
@@ -50,7 +56,7 @@ export async function generateRemotionInstructions(project: string) {
     - Suggest effects for each segment based on the content to amplify the message. Use a max of 3. Available effects: ${availableEffects.join(", ")}. Only include an effect if it meaningfully enhances the content.
     - Choose a transition between segments, default to fade. Available transitions: fade, slide, wipe, flip, iris, clockWipe.
   
-    Transcript: ${JSON.stringify(segments)}`;
+    Transcript: ${JSON.stringify(cleansegments)}`;
 
   try {
     const result = await generateText({

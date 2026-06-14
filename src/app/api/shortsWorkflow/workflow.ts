@@ -1,11 +1,13 @@
 
-export async function shortsWorkflow(project: string) {
+export async function shortsWorkflow(project: string, action?: string) {
   'use workflow';
 
   console.log("Workflow started for project:", project);
 
-  const { transcribeVideoFile } = await import('./steps/transcribeVideoFile');
-  await transcribeVideoFile(project);
+  if (action !== 'regenerateInstructions') {
+    const { transcribeVideoFile } = await import('./steps/transcribeVideoFile');
+    await transcribeVideoFile(project);
+  }
   
 
   //const {uploadTranscript} = await import('./steps/uploadTranscript');
