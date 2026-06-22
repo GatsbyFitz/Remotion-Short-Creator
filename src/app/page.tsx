@@ -12,6 +12,13 @@ import {
 } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import type { NextPage } from "next";
+import { 
+  ALL_FORMATS, 
+  Input as BunnyInput, // Aliased to avoid naming conflict with shadcn UI Input
+  UrlSource, 
+  VideoSample, 
+  VideoSampleSink 
+} from 'mediabunny';
 
 type Project = {
   id: string;
@@ -21,15 +28,125 @@ type Project = {
     segments: { start: number; end: number }[];
   }>;
   renderCount: number;
+  uploadedAt: string | null;
+  fileSizeBytes: number | null;
 };
 
+const formatFileSize = (bytes: number | null): string => {
+  if (bytes === null || !Number.isFinite(bytes) || bytes < 0) {
+    return "Unknown";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  const formattedSize = size >= 10 || unitIndex === 0 ? size.toFixed(0) : size.toFixed(1);
+  return `${formattedSize} ${units[unitIndex]}`;
+};
+
+const formatUploadedAt = (uploadedAt: string | null): string => {
+  if (!uploadedAt) {
+    return "Unknown";
+  }
+
+  const parsed = new Date(uploadedAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Unknown";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+};
+
+// ==========================================
+// MEDIABUNNY EXTRACTION INTERFACE DEFINITIONS
+// ==========================================
+type Options = {  
+  track: {width: number; height: number};  
+  container: string;  
+  durationInSeconds: number | null;
+};
+
+export type ExtractFramesTimestampsInSecondsFn = (options: Options) => Promise<number[]> | number[];
+
+export type ExtractFramesProps = {  
+  src: string;  
+  timestampsInSeconds: number[] | ExtractFramesTimestampsInSecondsFn;  
+  onVideoSample: (sample: VideoSample) => Promise<void> | void;  
+  signal?: AbortSignal;
+};
+
+export async function extractFrames({src, timestampsInSeconds, onVideoSample, signal}: ExtractFramesProps): Promise<void> {  
+  using input = new BunnyInput({    
+    formats: ALL_FORMATS,    
+    source: new UrlSource(src),  
+  });  
+  
+  const [durationInSeconds, format, videoTrack] = await Promise.all([
+    input.computeDuration(), 
+    input.getFormat(), 
+    input.getPrimaryVideoTrack()
+  ]);  
+  
+  if (!videoTrack) {    
+    throw new Error('No video track found in the input');  
+  }  
+  if (signal?.aborted) {    
+    throw new Error('Aborted');  
+  }  
+  
+  const timestamps = typeof timestampsInSeconds === 'function'      
+    ? await timestampsInSeconds({          
+        track: {            
+          width: videoTrack.displayWidth,            
+          height: videoTrack.displayHeight,          
+        },          
+        container: format.name,          
+        durationInSeconds,        
+      })      
+    : timestampsInSeconds;  
+    
+  if (timestamps.length === 0) {    
+    return;  
+  }  
+  if (signal?.aborted) {    
+    throw new Error('Aborted');  
+  }  
+  
+  const sink = new VideoSampleSink(videoTrack);  
+  for await (using videoSample of sink.samplesAtTimestamps(timestamps)) {    
+    if (signal?.aborted) {      
+      break;    
+    }    
+    if (!videoSample) {      
+      continue;    
+    }    
+    await onVideoSample(videoSample);  
+  }
+}
+// ==========================================
+
 const Home: NextPage = () => {
+  const defaultWorkflowAction = "runShortsWorkflow";
   const [file, setFile] = useState<File | null>(null);
   const [projectName, setProjectName] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [progressBytes, setProgressBytes] = useState(0);
+  const [projectActions, setProjectActions] = useState<Record<string, string>>({});
+  const [frameProgress, setFrameProgress] = useState("");
 
   const loadProjects = async () => {
     try {
@@ -50,6 +167,7 @@ const Home: NextPage = () => {
     setLoading(true);
     setError("");
     setProgressBytes(0);
+    setFrameProgress("");
 
     if (!file) {
       setError("Please select an MP4 file to upload.");
@@ -64,6 +182,7 @@ const Home: NextPage = () => {
     const resolvedProjectName = trimmedProjectName || fallbackProjectName || "Untitled Project";
 
     try {
+      // 1. Initialize Upload
       const startResponse = await fetch("/api/upload/start", { method: "POST" });
       if (!startResponse.ok) {
         const errorData = await startResponse.json();
@@ -75,8 +194,9 @@ const Home: NextPage = () => {
         projectId: string;
       };
 
+      // 2. Upload Video Chunks
       let uploaded = 0;
-      const concurrency = Math.min(4, totalChunks);
+      const concurrency = Math.min(6, totalChunks);
       let nextIndex = 0;
 
       const uploadChunk = async (index: number) => {
@@ -112,6 +232,7 @@ const Home: NextPage = () => {
 
       await Promise.all(workers);
 
+      // 3. Finalize Video Upload on Server
       const completeResponse = await fetch("/api/upload/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,13 +250,87 @@ const Home: NextPage = () => {
       }
 
       await completeResponse.json();
+
+      // ==========================================
+      // FIXED MEDIABUNNY FRAME GENERATION FLOW
+      // ==========================================
+      setFrameProgress("Initializing MediaBunny pipeline...");
+      const localVideoUrl = URL.createObjectURL(file);
+
+      try {
+        let frameIndex = 0;
+
+        await extractFrames({
+          src: localVideoUrl,
+          timestampsInSeconds: (options) => {
+            const duration = options.durationInSeconds ?? 0;
+            const totalFramesToExtract = 5;
+            const times: number[] = [];
+            for (let i = 0; i < totalFramesToExtract; i++) {
+              times.push((duration / totalFramesToExtract) * i);
+            }
+            return times;
+          },
+          onVideoSample: async (videoSample) => {
+            frameIndex++;
+            setFrameProgress(`MediaBunny decoding and uploading frame ${frameIndex}/5...`);
+
+            // 1. Setup offscreen canvas since VideoSample doesn't have a direct toBlob method
+            const canvas = document.createElement("canvas");
+            canvas.width = videoSample.displayWidth || 1280;
+            canvas.height = videoSample.displayHeight || 720;
+            
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+
+            // 2. Safely unpack pixel frames onto the rendering layout context
+            if (typeof (videoSample as any).draw === "function") {
+              (videoSample as any).draw(ctx, 0, 0);
+            } else {
+              const nativeFrame = (videoSample as any).toVideoFrame();
+              ctx.drawImage(nativeFrame, 0, 0, canvas.width, canvas.height);
+              nativeFrame.close(); // Clean up native references immediately
+            }
+
+            // 3. Convert frame snapshot to a regular JPEG Blob
+            const frameBlob = await new Promise<Blob | null>((resolve) => 
+              canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85)
+            );
+
+            if (!frameBlob) return;
+
+            // 4. Send FormData sequentially up to your Next.js route API
+            const formData = new FormData();
+            formData.append("frame", frameBlob, `frame_${frameIndex - 1}.jpg`);
+            formData.append("projectId", projectId);
+
+            const frameResponse = await fetch("/api/uploadFrames", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!frameResponse.ok) {
+              throw new Error(`Failed uploading frame_${frameIndex - 1}.jpg`);
+            }
+          }
+        });
+      } finally {
+        URL.revokeObjectURL(localVideoUrl);
+        setFrameProgress("");
+      }
+      // ==========================================
+
+      // 4. Refresh State on Success
       await loadProjects();
+
       setFile(null);
       setProjectName("");
+      alert("Project created and frames processed successfully!");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create project");
     } finally {
       setLoading(false);
+      setFrameProgress("");
     }
   };
 
@@ -162,6 +357,16 @@ const Home: NextPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const runProjectAction = async (projectId: string) => {
+    const selectedAction = projectActions[projectId] ?? defaultWorkflowAction;
+    if (selectedAction === "runShortsWorkflow") {
+      await runWorkflow(projectId);
+      return;
+    }
+
+    await runWorkflow(projectId, selectedAction);
   };
 
   return (
@@ -201,9 +406,6 @@ const Home: NextPage = () => {
                   onChange={(e) => setProjectName(e.target.value)}
                   className="text-slate-100 placeholder:text-slate-500"
                 />
-                <p className="text-xs text-slate-400">
-                  This name is saved in metadata.json for the project and shown in the list.
-                </p>
               </div>
 
               <div className="space-y-2">
@@ -216,9 +418,6 @@ const Home: NextPage = () => {
                   className="text-slate-100 align-middle file:mr-4 file:rounded-md file:border-0 file:text-slate-100 file:font-medium"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
-                <p className="text-xs text-slate-400">
-                  The file will be saved as video.mp4 inside a unique project directory.
-                </p>
               </div>
 
               {file ? (
@@ -249,6 +448,12 @@ const Home: NextPage = () => {
                 </div>
               ) : null}
 
+              {frameProgress ? (
+                <div className="text-xs text-cyan-400 font-mono animate-pulse mt-1">
+                  🐰 {frameProgress}
+                </div>
+              ) : null}
+
               {error ? (
                 <div className="rounded-lg border border-red-900/50 bg-red-950/40 p-4 text-sm text-red-300">
                   {error}
@@ -257,7 +462,7 @@ const Home: NextPage = () => {
             </CardContent>
 
             <CardFooter className="flex flex-wrap gap-3">
-              <Button onClick={createProject} disabled={loading || !file}>
+              <Button variant="secondary" onClick={createProject} disabled={loading || !file}>
                 {loading ? "Creating..." : "Create Project"}
               </Button>
             </CardFooter>
@@ -266,9 +471,6 @@ const Home: NextPage = () => {
           <Card className="border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/20 backdrop-blur">
             <CardHeader>
               <CardTitle className="text-xl text-slate-100">Project Summary</CardTitle>
-              <CardDescription className="text-slate-100">
-                Projects returned by the findProjects API.
-              </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-3">
@@ -290,28 +492,19 @@ const Home: NextPage = () => {
                   </div>
                 </div>
               </div>
-
-              <p className="text-sm text-slate-400">
-                Select a project from the list below to inspect it later.
-              </p>
             </CardContent>
           </Card>
         </section>
 
         <section>
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Projects</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Folders discovered from public/projects.
-              </p>
-            </div>
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold tracking-tight">Projects</h2>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => (
               <Card
-                key={project.name}
+                key={project.id}
                 className="border-slate-800 bg-slate-900/75 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-cyan-500/40"
               >
                 <CardHeader>
@@ -323,21 +516,47 @@ const Home: NextPage = () => {
                     Project ID: {project.id}
                   </div>
                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    {project.shorts.length} shorts loaded from instructions.json
+                    Uploaded: {formatUploadedAt(project.uploadedAt)}
                   </div>
                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    <Button variant="outline" size="sm" onClick={() => void runWorkflow(project.id)} disabled={loading}>
-                      {loading ? "Running..." : "Run Shorts Workflow"}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => void runWorkflow(project.id, 'regenerateInstructions')} disabled={loading}>
-                      {loading ? "Running..." : "Regenerate Instructions"}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
-                      View Instructions
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => fetch(`/api/deleteProject?provisionId=${project.id}`, { method: "DELETE" }).then(() => window.location.reload())}>
-                      Delete Project
-                    </Button>
+                    File size: {formatFileSize(project.fileSizeBytes)}
+                  </div>
+                  <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        aria-label={`Select workflow action for ${project.name}`}
+                        className="h-8 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100"
+                        value={projectActions[project.id] ?? defaultWorkflowAction}
+                        onChange={(e) => {
+                          const nextAction = e.target.value;
+                          setProjectActions((prev) => ({
+                            ...prev,
+                            [project.id]: nextAction,
+                          }));
+                        }}
+                        disabled={loading}
+                      >
+                        <option value="runShortsWorkflow">Run Shorts Workflow</option>
+                        <option value="regenerateInstructions">Regenerate Instructions</option>
+                        <option value="normaliseVideo">Normalise Video</option>
+                      </select>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void runProjectAction(project.id)}
+                        disabled={loading}
+                      >
+                        {loading ? "Running..." : "Run Action"}
+                      </Button>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
+                        View Instructions
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => fetch(`/api/deleteProject?provisionId=${project.id}`, { method: "DELETE" }).then(() => window.location.reload())}>
+                        Delete Project
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -358,4 +577,3 @@ const Home: NextPage = () => {
 };
 
 export default Home;
-

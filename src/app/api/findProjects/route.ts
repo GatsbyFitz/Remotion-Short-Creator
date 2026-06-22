@@ -4,7 +4,14 @@ import { NextResponse } from "next/server";
 
 type Segment = { start: number; end: number };
 type Short = { id: string; segments: Segment[] };
-type Project = { id: string; name: string; shorts: Short[]; renderCount: number };
+type Project = {
+  id: string;
+  name: string;
+  shorts: Short[];
+  renderCount: number;
+  uploadedAt: string | null;
+  fileSizeBytes: number | null;
+};
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "http://localhost:3001",
@@ -32,12 +39,25 @@ export async function GET() {
       const instructionsPath = path.join(projectDir, "instructions.json");
       const metadataPath = path.join(projectDir, "metadata.json");
       const metadata = fs.existsSync(metadataPath)
-        ? JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as { projectName?: string }
+        ? JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as {
+          projectName?: string;
+          uploadedAt?: string;
+          fileSizeBytes?: number;
+        }
         : null;
       const projectName = metadata?.projectName?.trim() || projectId;
+      const uploadedAt = typeof metadata?.uploadedAt === "string" ? metadata.uploadedAt : null;
+      const fileSizeBytes = typeof metadata?.fileSizeBytes === "number" ? metadata.fileSizeBytes : null;
 
       if (!fs.existsSync(instructionsPath)) {
-        return { id: projectId, name: projectName, shorts: [], renderCount: 0 };
+        return {
+          id: projectId,
+          name: projectName,
+          shorts: [],
+          renderCount: 0,
+          uploadedAt,
+          fileSizeBytes,
+        };
       }
 
       const raw = fs.readFileSync(instructionsPath, "utf-8");
@@ -49,6 +69,8 @@ export async function GET() {
         name: projectName,
         shorts,
         renderCount: shorts.length,
+        uploadedAt,
+        fileSizeBytes,
       };
     });
 

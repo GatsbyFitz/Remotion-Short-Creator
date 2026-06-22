@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
     out.end();
   });
 
+  const videoFileSizeBytes = fs.statSync(videoPath).size;
+  const uploadedAt = new Date().toISOString();
+
   const resolvedProjectName = projectName || projectId;
   fs.writeFileSync(
     metadataPath,
@@ -81,7 +84,9 @@ export async function POST(request: NextRequest) {
       {
         projectId,
         projectName: resolvedProjectName,
-        createdAt: new Date().toISOString(),
+        createdAt: uploadedAt,
+        uploadedAt,
+        fileSizeBytes: videoFileSizeBytes,
       },
       null,
       2,

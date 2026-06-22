@@ -4,7 +4,7 @@ export async function shortsWorkflow(project: string, action?: string) {
 
   console.log("Workflow started for project:", project);
 
-  if (action !== 'regenerateInstructions') {
+  if (action == 'runShortsWorkflow') {
     const { transcribeVideoFile } = await import('./steps/transcribeVideoFile');
     await transcribeVideoFile(project);
   }
@@ -29,8 +29,18 @@ export async function shortsWorkflow(project: string, action?: string) {
 
   // console.log("Transcription completed. Transcript path:", transcriptDataFetched);
 
-  const { generateRemotionInstructions } = await import('./steps/generateInstructions');
-  await generateRemotionInstructions(project);
+  if (action === 'normaliseVideo') {
+  const { normaliseVideo } = await import("./steps/normaliseVideo");
+  await normaliseVideo(project);
+  }
+
+  if (action === 'generateFrames') {
+  const {generateFrames} = await import('./steps/generateFrames');
+  await generateFrames(project);
+  }
+
+  //const { generateRemotionInstructions } = await import('./steps/generateInstructions');
+  //await generateRemotionInstructions(project);
 
   //console.log("Generated Remotion instructions:", RemotionInstructions);
 

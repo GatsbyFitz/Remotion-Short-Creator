@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
           projectId,
           projectName,
           createdAt: new Date().toISOString(),
+          uploadedAt: new Date().toISOString(),
+          fileSizeBytes: bytesWritten,
         },
         null,
         2,

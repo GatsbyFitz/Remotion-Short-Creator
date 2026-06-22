@@ -28,6 +28,8 @@ export async function generateRemotionInstructions(project: string) {
     shorts: z.array(
       z.object({
         id: z.string(),
+        title: z.string(),
+        description: z.string(),
         segments: z.array(
           z.object({
             start: z.number(),
@@ -60,7 +62,7 @@ export async function generateRemotionInstructions(project: string) {
 
   try {
     const result = await generateText({
-      model: "anthropic/claude-opus-4.8",
+      model: "google/gemini-3-flash",
       prompt,
       output: Output.object({ schema: InstructionsSchema }),
     });

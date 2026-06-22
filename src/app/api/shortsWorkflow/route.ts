@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { start } from "workflow/api";
 import { shortsWorkflow } from "./workflow";
 
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { project, action } = body;
