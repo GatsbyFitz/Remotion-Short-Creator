@@ -1,5 +1,5 @@
 
-export async function shortsWorkflow(project: string, action?: string) {
+export async function shortsWorkflow(project: string, action: string) {
   'use workflow';
 
   console.log("Workflow started for project:", project);
@@ -8,7 +8,8 @@ export async function shortsWorkflow(project: string, action?: string) {
     const { transcribeVideoFile } = await import('./steps/transcribeVideoFile');
     await transcribeVideoFile(project);
   }
-  
+
+
 
   //const {uploadTranscript} = await import('./steps/uploadTranscript');
   //const {url} = await uploadTranscript(transcriptData, `transcripts/${videoFilename.replace('.MP4', '').replace('.mp4', '')}.txt`);
@@ -34,10 +35,12 @@ export async function shortsWorkflow(project: string, action?: string) {
   await normaliseVideo(project);
   }
 
-  if (action === 'generateFrames') {
-  const {generateFrames} = await import('./steps/generateFrames');
-  await generateFrames(project);
+  if (action === 'generateYoutubeChapters') {
+    const { generateYouTubeChapters } = await import("./steps/generateYoutubeChapters");
+    await generateYouTubeChapters(project);
   }
+
+
 
   //const { generateRemotionInstructions } = await import('./steps/generateInstructions');
   //await generateRemotionInstructions(project);

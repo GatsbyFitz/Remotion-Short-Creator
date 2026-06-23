@@ -359,15 +359,6 @@ const Home: NextPage = () => {
     }
   };
 
-  const runProjectAction = async (projectId: string) => {
-    const selectedAction = projectActions[projectId] ?? defaultWorkflowAction;
-    if (selectedAction === "runShortsWorkflow") {
-      await runWorkflow(projectId);
-      return;
-    }
-
-    await runWorkflow(projectId, selectedAction);
-  };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-6 py-10 text-slate-100">
@@ -539,11 +530,14 @@ const Home: NextPage = () => {
                         <option value="runShortsWorkflow">Run Shorts Workflow</option>
                         <option value="regenerateInstructions">Regenerate Instructions</option>
                         <option value="normaliseVideo">Normalise Video</option>
+                        <option value="generateYoutubeChapters">Generate YouTube Chapters</option>
                       </select>
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => void runProjectAction(project.id)}
+                        onClick={() => 
+                          void runWorkflow(project.id, projectActions[project.id] ?? defaultWorkflowAction)
+                        }
                         disabled={loading}
                       >
                         {loading ? "Running..." : "Run Action"}
@@ -552,6 +546,9 @@ const Home: NextPage = () => {
                     <div className="flex gap-2 mt-2">
                       <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
                         View Instructions
+                      </Button>
+                       <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/youtube_chapters.txt`, "_blank")}>
+                        View Youtube Chapters
                       </Button>
                       <Button variant="secondary" size="sm" onClick={() => fetch(`/api/deleteProject?provisionId=${project.id}`, { method: "DELETE" }).then(() => window.location.reload())}>
                         Delete Project
