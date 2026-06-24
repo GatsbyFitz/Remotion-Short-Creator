@@ -11,6 +11,7 @@ type Project = {
   renderCount: number;
   uploadedAt: string | null;
   fileSizeBytes: number | null;
+  audioFileSizeBytes: number | null; // Added to structural type definition
 };
 
 const corsHeaders = {
@@ -38,16 +39,24 @@ export async function GET() {
       const projectDir = path.join(projectsDir, projectId);
       const instructionsPath = path.join(projectDir, "instructions.json");
       const metadataPath = path.join(projectDir, "metadata.json");
+      
       const metadata = fs.existsSync(metadataPath)
         ? JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as {
           projectName?: string;
           uploadedAt?: string;
           fileSizeBytes?: number;
+          audioFileSizeBytes?: number; // Read target from json schema map
         }
         : null;
+        
       const projectName = metadata?.projectName?.trim() || projectId;
       const uploadedAt = typeof metadata?.uploadedAt === "string" ? metadata.uploadedAt : null;
       const fileSizeBytes = typeof metadata?.fileSizeBytes === "number" ? metadata.fileSizeBytes : null;
+      
+      // Handle missing audio sizes gracefully for legacy projects
+      const audioFileSizeBytes = typeof metadata?.audioFileSizeBytes === "number" 
+        ? metadata.audioFileSizeBytes 
+        : null;
 
       if (!fs.existsSync(instructionsPath)) {
         return {
@@ -57,6 +66,7 @@ export async function GET() {
           renderCount: 0,
           uploadedAt,
           fileSizeBytes,
+          audioFileSizeBytes,
         };
       }
 
@@ -71,6 +81,7 @@ export async function GET() {
         renderCount: shorts.length,
         uploadedAt,
         fileSizeBytes,
+        audioFileSizeBytes,
       };
     });
 

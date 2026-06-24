@@ -50,4 +50,8 @@ out
 
 # media
 *.mp4
+*.jpg
+*.mp3
+*.json
+
 
