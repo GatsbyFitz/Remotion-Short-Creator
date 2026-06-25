@@ -262,55 +262,82 @@ const Home: NextPage = () => {
         let frameIndex = 0;
 
         await extractFrames({
-          src: localVideoUrl,
-          timestampsInSeconds: (options) => {
-            const duration = options.durationInSeconds ?? 0;
-            const totalFramesToExtract = 5;
-            const times: number[] = [];
-            for (let i = 0; i < totalFramesToExtract; i++) {
-              times.push((duration / totalFramesToExtract) * i);
+            src: localVideoUrl,
+            timestampsInSeconds: (options) => {
+              const duration = options.durationInSeconds ?? 0;
+              const totalFramesToExtract = 5;
+              const times: number[] = [];
+
+              // Loop from 0 up to the total video duration, adding a timestamp every 1 second
+              for (let t = 0; t <= duration; t++) {
+                times.push(t);
+              }
+              
+              return times;
+            },
+
+
+            onVideoSample: async (videoSample) => {
+              frameIndex++;
+              setFrameProgress(`MediaBunny decoding and uploading frame ${frameIndex}...`);
+
+              // Calculate the timestamp in seconds (WebCodecs timestamps are usually in microseconds)
+              const timestampInSeconds = (typeof videoSample.timestamp === "number") 
+                ? videoSample.timestamp.toFixed(2) 
+                : `index_${frameIndex}`;
+    
+              const filename = `frame_${timestampInSeconds}s.jpg`;
+
+              const canvas = document.createElement("canvas");
+              canvas.width = videoSample.displayWidth || 1280;
+              canvas.height = videoSample.displayHeight || 720;
+              
+              const ctx = canvas.getContext("2d");
+              if (!ctx) return;
+
+              if (typeof (videoSample as any).draw === "function") {
+                (videoSample as any).draw(ctx, 0, 0);
+              } else {
+                const nativeFrame = (videoSample as any).toVideoFrame();
+                ctx.drawImage(nativeFrame, 0, 0, canvas.width, canvas.height);
+                nativeFrame.close();
+              }
+
+              const frameBlob = await new Promise<Blob | null>((resolve) => 
+                canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85)
+              );
+
+              if (!frameBlob) return;
+
+              const formData = new FormData();
+              // Updated to use the new dynamic filename
+              formData.append("frame", frameBlob, filename);
+              formData.append("projectId", projectId);
+
+              const frameResponse = await fetch("/api/uploadFrames", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!frameResponse.ok) {
+                throw new Error(`Failed uploading ${filename}`);
+              }
             }
-            return times;
-          },
-          onVideoSample: async (videoSample) => {
-            frameIndex++;
-            setFrameProgress(`MediaBunny decoding and uploading frame ${frameIndex}/5...`);
+          });
+          
+        } catch (error) {
+          console.error("Frame extraction failed:", error);
+        }
 
-            const canvas = document.createElement("canvas");
-            canvas.width = videoSample.displayWidth || 1280;
-            canvas.height = videoSample.displayHeight || 720;
-            
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-
-            if (typeof (videoSample as any).draw === "function") {
-              (videoSample as any).draw(ctx, 0, 0);
-            } else {
-              const nativeFrame = (videoSample as any).toVideoFrame();
-              ctx.drawImage(nativeFrame, 0, 0, canvas.width, canvas.height);
-              nativeFrame.close();
-            }
-
-            const frameBlob = await new Promise<Blob | null>((resolve) => 
-              canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85)
-            );
-
-            if (!frameBlob) return;
-
-            const formData = new FormData();
-            formData.append("frame", frameBlob, `frame_${frameIndex - 1}.jpg`);
-            formData.append("projectId", projectId);
-
-            const frameResponse = await fetch("/api/uploadFrames", {
-              method: "POST",
-              body: formData,
-            });
-
-            if (!frameResponse.ok) {
-              throw new Error(`Failed uploading frame_${frameIndex - 1}.jpg`);
-            }
-          }
+        const manifestResponse = await fetch("/api/createFramesManifest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project: projectId }),
         });
+
+        if (!manifestResponse.ok) {
+          throw new Error("Failed to create frames manifest");
+        }
 
         // ==========================================
         // OPTIMIZED MEDIABUNNY AUDIO CONVERSION
@@ -359,11 +386,6 @@ const Home: NextPage = () => {
           console.warn("Audio conversion configuration mismatch:", conversion.discardedTracks);
         }
         // ==========================================
-
-      } finally {
-        URL.revokeObjectURL(localVideoUrl);
-        setFrameProgress("");
-      }
 
       // 4. Refresh State on Success
       await loadProjects();
@@ -593,7 +615,7 @@ const Home: NextPage = () => {
                         {loading ? "Running..." : "Run Action"}
                       </Button>
                     </div>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2 mt-2 flex-wrap">
                       <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
                         View Instructions
                       </Button>
