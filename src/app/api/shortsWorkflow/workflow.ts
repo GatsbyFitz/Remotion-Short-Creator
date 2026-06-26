@@ -30,9 +30,9 @@ export async function shortsWorkflow(project: string, action: string) {
 
   // console.log("Transcription completed. Transcript path:", transcriptDataFetched);
 
-  if (action === 'normaliseVideo') {
-  const { normaliseVideo } = await import("./steps/normaliseVideo");
-  await normaliseVideo(project);
+  if ( action === 'runShortsWorkflow' || action === 'regenerateInstructions') {
+  const { generateRemotionInstructions } = await import('./steps/generateInstructions');
+  await generateRemotionInstructions(project);
   }
 
   if (action === 'generateYoutubeChapters') {
@@ -42,8 +42,6 @@ export async function shortsWorkflow(project: string, action: string) {
 
 
 
-  //const { generateRemotionInstructions } = await import('./steps/generateInstructions');
-  //await generateRemotionInstructions(project);
 
   //console.log("Generated Remotion instructions:", RemotionInstructions);
 

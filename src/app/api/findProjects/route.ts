@@ -12,6 +12,7 @@ type Project = {
   uploadedAt: string | null;
   fileSizeBytes: number | null;
   audioFileSizeBytes: number | null; // Added to structural type definition
+  frameCount: number | null; // Added to structural type definition
 };
 
 const corsHeaders = {
@@ -46,6 +47,7 @@ export async function GET() {
           uploadedAt?: string;
           fileSizeBytes?: number;
           audioFileSizeBytes?: number; // Read target from json schema map
+          frameCount?: number; // Read target from json schema map
         }
         : null;
         
@@ -67,6 +69,7 @@ export async function GET() {
           uploadedAt,
           fileSizeBytes,
           audioFileSizeBytes,
+          frameCount: metadata?.frameCount ?? null,
         };
       }
 
@@ -82,6 +85,7 @@ export async function GET() {
         uploadedAt,
         fileSizeBytes,
         audioFileSizeBytes,
+        frameCount: metadata?.frameCount ?? null,
       };
     });
 

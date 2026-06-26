@@ -31,6 +31,7 @@ type Project = {
   uploadedAt: string | null;
   fileSizeBytes: number | null;
   audioFileSizeBytes: number | null;
+  frameCount: number | null;
 };
 
 const formatFileSize = (bytes: number | null): string => {
@@ -184,7 +185,7 @@ const Home: NextPage = () => {
 
     try {
       // 1. Initialize Upload
-      const startResponse = await fetch("/api/upload/start", { method: "POST" });
+      const startResponse = await fetch("/api/upload/start", { method: "POST", headers: { "x-project-name": resolvedProjectName } });
       if (!startResponse.ok) {
         const errorData = await startResponse.json();
         throw new Error(errorData.error || "Failed to start upload");
@@ -583,6 +584,9 @@ const Home: NextPage = () => {
                   </div>
                    <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
                     Audio file size: {formatFileSize(project.audioFileSizeBytes)}
+                  </div>
+                     <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
+                    Frames: {project.frameCount}
                   </div>
                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
                     <div className="flex flex-wrap items-center gap-2">

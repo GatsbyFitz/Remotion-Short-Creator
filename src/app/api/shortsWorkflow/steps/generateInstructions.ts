@@ -1,12 +1,18 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import fs from "fs";
+import path from "path/win32";
 
 export async function generateRemotionInstructions(project: string) {
   "use step";
 
 
   const transcriptPath = `public/projects/${project}/transcript.json`;
+
+  const framesPath = `public/projects/${project}/frames-manifest.json`;
+  const framesManifest = JSON.parse(fs.readFileSync(framesPath, "utf-8"));
+
+  const frames = Array.isArray(framesManifest?.frames) ? framesManifest.frames : [];
 
   if (!fs.existsSync(transcriptPath)) {
     throw new Error(`Transcript file not found at path: ${transcriptPath}`);
@@ -42,28 +48,49 @@ export async function generateRemotionInstructions(project: string) {
     ).min(5).max(7),
   });
 
-  const availableEffects = [
-    "grayscale",
-    "invert",
-    "scale",
-  ];
 
+const frameParts = frames.map((frame: { relativePath: string }) => ({
+    type: "image" as const,
+    image: fs.readFileSync(path.join("public", frame.relativePath)),
+    mediaType: "image/jpeg",
+  }));
 
-  const prompt = `Given the transcript, produce object matching the Instructions schema. 
-  
-  Requirements: 
-    - Each short should include 2–4 segments when possible.
-    - Create shorts that perform on social: ideal length 30-45s (max 55s). A short is made up of one or more segments from the transcript.
-    - Each segment: 6-20s; include start,end.
-    - Suggest effects for each segment based on the content to amplify the message. Use a max of 3. Available effects: ${availableEffects.join(", ")}. Only include an effect if it meaningfully enhances the content.
-    - Choose a transition between segments, default to fade. Available transitions: fade, slide, wipe, flip, iris, clockWipe.
-  
-    Transcript: ${JSON.stringify(cleansegments)}`;
+const promptText = `Given the transcript and the available frames, produce object matching the Instructions schema.
+
+Requirements:
+- Use frames as visual guidance for story selection and short construction.
+- Do not return frame data in the output.
+- Create shorts that perform on social: ideal length 30-45s (max 55s).
+- Each short should include 2-4 segments when possible.
+- Each segment: 6-20s; include start,end.
+- Suggest effects for each segment based on the content.
+- Choose a transition between segments, default to fade.
+- Rarely apply an effect
+
+Transcript:
+${JSON.stringify(cleansegments)}
+
+Frames:
+${JSON.stringify(frames.map((frame: { second: number; relativePath: string }) => ({
+  second: frame.second,
+  relativePath: frame.relativePath,
+})))}`;
 
   try {
     const result = await generateText({
       model: "google/gemini-3-flash",
-      prompt,
+       messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: promptText,
+            },
+            ...frameParts,
+          ],
+        },
+      ],
       output: Output.object({ schema: InstructionsSchema }),
     });
 

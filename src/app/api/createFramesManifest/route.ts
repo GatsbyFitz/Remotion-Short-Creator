@@ -57,6 +57,24 @@ export async function POST(request: NextRequest) {
 
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf-8");
 
+    const metadataPath = path.join(projectDir, "metadata.json");
+    const existingMetadata = fs.existsSync(metadataPath)
+      ? JSON.parse(fs.readFileSync(metadataPath, "utf-8"))
+      : {};
+
+    fs.writeFileSync(
+      metadataPath,
+      JSON.stringify(
+        {
+          ...existingMetadata,
+          frameCount: frames.length,
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
     return NextResponse.json(manifest, { status: 200 });
   } catch (err) {
     console.error("Failed to create frames manifest:", err);
