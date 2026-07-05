@@ -64,5 +64,5 @@ out
 public/projects/**
 
 # Agents
-.agents
-.github
+.agents/
+.github/
