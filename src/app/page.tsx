@@ -605,7 +605,6 @@ const Home: NextPage = () => {
                       >
                         <option value="runShortsWorkflow">Run Shorts Workflow</option>
                         <option value="regenerateInstructions">Regenerate Instructions</option>
-                        <option value="normaliseVideo">Normalise Video</option>
                         <option value="generateYoutubeChapters">Generate YouTube Chapters</option>
                       </select>
                       <Button

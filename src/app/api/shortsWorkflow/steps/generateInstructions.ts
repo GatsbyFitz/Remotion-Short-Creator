@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import fs from "fs";
-import path from "path/win32";
+import path from "node:path";
 
 export async function generateRemotionInstructions(project: string) {
   "use step";
@@ -30,10 +30,16 @@ export async function generateRemotionInstructions(project: string) {
     text: segment.text.replace(/\./g, "").replace(/\s+/g, " ").trim(),
   }));
 
+  const toKebab = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
   const InstructionsSchema = z.object({
     shorts: z.array(
       z.object({
-        id: z.string(),
+        id: z.string().min(1).transform(toKebab),
         title: z.string(),
         description: z.string(),
         segments: z.array(
@@ -42,10 +48,11 @@ export async function generateRemotionInstructions(project: string) {
             end: z.number(),
             effect: z.enum(["grayscale", "invert", "scale"]).optional(),
             transition: z.enum(["fade", "slide", "wipe", "flip", "iris", "clockWipe"]).optional(),
+            segment_purpose: z.string().optional(),
           })
         ),
       })
-    ).min(5).max(7),
+    ).min(1).max(7),
   });
 
 
@@ -62,10 +69,12 @@ Requirements:
 - Do not return frame data in the output.
 - Create shorts that perform on social: ideal length 30-45s (max 55s).
 - Each short should include 2-4 segments when possible.
-- Each segment: 6-20s; include start,end.
+- Each segment: 6-20s; include start, end.
 - Suggest effects for each segment based on the content.
 - Choose a transition between segments, default to fade.
 - Rarely apply an effect
+
+Output format: JSON object with shorts array, each short has id that must be lowercase letters, numbers, and hyphens only, title, description, segments array.
 
 Transcript:
 ${JSON.stringify(cleansegments)}
