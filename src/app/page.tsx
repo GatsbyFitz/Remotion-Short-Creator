@@ -30,6 +30,8 @@ type Project = {
   renderCount: number;
   uploadedAt: string | null;
   fileSizeBytes: number | null;
+  audioFileSizeBytes: number | null;
+  frameCount: number | null;
 };
 
 const formatFileSize = (bytes: number | null): string => {
@@ -183,7 +185,7 @@ const Home: NextPage = () => {
 
     try {
       // 1. Initialize Upload
-      const startResponse = await fetch("/api/upload/start", { method: "POST" });
+      const startResponse = await fetch("/api/upload/start", { method: "POST", headers: { "x-project-name": resolvedProjectName } });
       if (!startResponse.ok) {
         const errorData = await startResponse.json();
         throw new Error(errorData.error || "Failed to start upload");
@@ -261,71 +263,137 @@ const Home: NextPage = () => {
         let frameIndex = 0;
 
         await extractFrames({
-          src: localVideoUrl,
-          timestampsInSeconds: (options) => {
-            const duration = options.durationInSeconds ?? 0;
-            const totalFramesToExtract = 5;
-            const times: number[] = [];
-            for (let i = 0; i < totalFramesToExtract; i++) {
-              times.push((duration / totalFramesToExtract) * i);
+            src: localVideoUrl,
+            timestampsInSeconds: (options) => {
+              const duration = options.durationInSeconds ?? 0;
+              const totalFramesToExtract = 5;
+              const times: number[] = [];
+
+              // Loop from 0 up to the total video duration, adding a timestamp every 1 second
+              for (let t = 0; t <= duration; t++) {
+                times.push(t);
+              }
+              
+              return times;
+            },
+
+
+            onVideoSample: async (videoSample) => {
+              frameIndex++;
+              setFrameProgress(`MediaBunny decoding and uploading frame ${frameIndex}...`);
+
+              // Calculate the timestamp in seconds (WebCodecs timestamps are usually in microseconds)
+              const timestampInSeconds = (typeof videoSample.timestamp === "number") 
+                ? videoSample.timestamp.toFixed(2) 
+                : `index_${frameIndex}`;
+    
+              const filename = `frame_${timestampInSeconds}s.jpg`;
+
+              const canvas = document.createElement("canvas");
+              canvas.width = videoSample.displayWidth || 1280;
+              canvas.height = videoSample.displayHeight || 720;
+              
+              const ctx = canvas.getContext("2d");
+              if (!ctx) return;
+
+              if (typeof (videoSample as any).draw === "function") {
+                (videoSample as any).draw(ctx, 0, 0);
+              } else {
+                const nativeFrame = (videoSample as any).toVideoFrame();
+                ctx.drawImage(nativeFrame, 0, 0, canvas.width, canvas.height);
+                nativeFrame.close();
+              }
+
+              const frameBlob = await new Promise<Blob | null>((resolve) => 
+                canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85)
+              );
+
+              if (!frameBlob) return;
+
+              const formData = new FormData();
+              // Updated to use the new dynamic filename
+              formData.append("frame", frameBlob, filename);
+              formData.append("projectId", projectId);
+
+              const frameResponse = await fetch("/api/uploadFrames", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!frameResponse.ok) {
+                throw new Error(`Failed uploading ${filename}`);
+              }
             }
-            return times;
-          },
-          onVideoSample: async (videoSample) => {
-            frameIndex++;
-            setFrameProgress(`MediaBunny decoding and uploading frame ${frameIndex}/5...`);
+          });
+          
+        } catch (error) {
+          console.error("Frame extraction failed:", error);
+        }
 
-            // 1. Setup offscreen canvas since VideoSample doesn't have a direct toBlob method
-            const canvas = document.createElement("canvas");
-            canvas.width = videoSample.displayWidth || 1280;
-            canvas.height = videoSample.displayHeight || 720;
-            
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-
-            // 2. Safely unpack pixel frames onto the rendering layout context
-            if (typeof (videoSample as any).draw === "function") {
-              (videoSample as any).draw(ctx, 0, 0);
-            } else {
-              const nativeFrame = (videoSample as any).toVideoFrame();
-              ctx.drawImage(nativeFrame, 0, 0, canvas.width, canvas.height);
-              nativeFrame.close(); // Clean up native references immediately
-            }
-
-            // 3. Convert frame snapshot to a regular JPEG Blob
-            const frameBlob = await new Promise<Blob | null>((resolve) => 
-              canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85)
-            );
-
-            if (!frameBlob) return;
-
-            // 4. Send FormData sequentially up to your Next.js route API
-            const formData = new FormData();
-            formData.append("frame", frameBlob, `frame_${frameIndex - 1}.jpg`);
-            formData.append("projectId", projectId);
-
-            const frameResponse = await fetch("/api/uploadFrames", {
-              method: "POST",
-              body: formData,
-            });
-
-            if (!frameResponse.ok) {
-              throw new Error(`Failed uploading frame_${frameIndex - 1}.jpg`);
-            }
-          }
+        const manifestResponse = await fetch("/api/createFramesManifest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project: projectId }),
         });
-      } finally {
-        URL.revokeObjectURL(localVideoUrl);
-        setFrameProgress("");
-      }
-      // ==========================================
+
+        if (!manifestResponse.ok) {
+          throw new Error("Failed to create frames manifest");
+        }
+
+        // ==========================================
+        // OPTIMIZED MEDIABUNNY AUDIO CONVERSION
+        // ==========================================
+        setFrameProgress("Extracting and converting audio stream with MediaBunny...");
+
+        const { Input, Output, BufferTarget, Conversion, UrlSource, ALL_FORMATS, Mp4OutputFormat  } = await import('mediabunny');
+
+        const audioInputInstance = new Input({
+          formats: ALL_FORMATS,
+          source: new UrlSource(localVideoUrl),
+        });
+
+        const target = new BufferTarget();
+        const audioOutputInstance = new Output({
+          format: new Mp4OutputFormat(),
+          target: target,
+        });
+
+        const conversion = await Conversion.init({
+          input: audioInputInstance,
+          output: audioOutputInstance,
+          video: { discard: true }, // Drop the video tracks
+          audio: { forceTranscode: true, bitrate: 64000 } // Let it pass-through or transcode to AAC naturally
+        });
+
+        if (conversion.isValid) {
+          await conversion.execute();
+
+          const audioBlob = new Blob([target.buffer], { type: "audio/mp4" });
+
+          setFrameProgress("Uploading audio.mp4 track package...");
+          const audioFormData = new FormData();
+          audioFormData.append("audio", audioBlob, "audio.mp4");
+          audioFormData.append("projectId", projectId);
+
+          const audioResponse = await fetch("/api/uploadAudio", {
+            method: "POST",
+            body: audioFormData,
+          });
+
+          if (!audioResponse.ok) {
+            throw new Error("Failed to upload stripped audio track.");
+          }
+        } else {
+          console.warn("Audio conversion configuration mismatch:", conversion.discardedTracks);
+        }
+        // ==========================================
 
       // 4. Refresh State on Success
       await loadProjects();
 
       setFile(null);
       setProjectName("");
-      alert("Project created and frames processed successfully!");
+      alert("Project created, frames processed, and audio uploaded successfully!");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create project");
     } finally {
@@ -333,6 +401,8 @@ const Home: NextPage = () => {
       setFrameProgress("");
     }
   };
+
+
 
   const runWorkflow = async (projectName: string, action?: string) => {
     setLoading(true);
@@ -359,15 +429,6 @@ const Home: NextPage = () => {
     }
   };
 
-  const runProjectAction = async (projectId: string) => {
-    const selectedAction = projectActions[projectId] ?? defaultWorkflowAction;
-    if (selectedAction === "runShortsWorkflow") {
-      await runWorkflow(projectId);
-      return;
-    }
-
-    await runWorkflow(projectId, selectedAction);
-  };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-6 py-10 text-slate-100">
@@ -519,7 +580,13 @@ const Home: NextPage = () => {
                     Uploaded: {formatUploadedAt(project.uploadedAt)}
                   </div>
                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    File size: {formatFileSize(project.fileSizeBytes)}
+                    Video file size: {formatFileSize(project.fileSizeBytes)}
+                  </div>
+                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
+                    Audio file size: {formatFileSize(project.audioFileSizeBytes)}
+                  </div>
+                     <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
+                    Frames: {project.frameCount}
                   </div>
                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
                     <div className="flex flex-wrap items-center gap-2">
@@ -538,20 +605,25 @@ const Home: NextPage = () => {
                       >
                         <option value="runShortsWorkflow">Run Shorts Workflow</option>
                         <option value="regenerateInstructions">Regenerate Instructions</option>
-                        <option value="normaliseVideo">Normalise Video</option>
+                        <option value="generateYoutubeChapters">Generate YouTube Chapters</option>
                       </select>
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => void runProjectAction(project.id)}
+                        onClick={() => 
+                          void runWorkflow(project.id, projectActions[project.id] ?? defaultWorkflowAction)
+                        }
                         disabled={loading}
                       >
                         {loading ? "Running..." : "Run Action"}
                       </Button>
                     </div>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2 mt-2 flex-wrap">
                       <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
                         View Instructions
+                      </Button>
+                       <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/youtube_chapters.txt`, "_blank")}>
+                        View Youtube Chapters
                       </Button>
                       <Button variant="secondary" size="sm" onClick={() => fetch(`/api/deleteProject?provisionId=${project.id}`, { method: "DELETE" }).then(() => window.location.reload())}>
                         Delete Project

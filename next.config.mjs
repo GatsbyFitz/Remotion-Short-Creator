@@ -4,11 +4,7 @@ import { withWorkflow } from "workflow/next";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    serverExternalPackages: [
-        "@mediabunny/server",
-        "node-av",
-        "@seydx/node-av-darwin-arm64",
-    ],
+    serverExternalPackages: ['@mediabunny/server', '@seydx/node-av'],
     // Include the Remotion bundle in the API route
     outputFileTracingIncludes: {
         "/api/render": [

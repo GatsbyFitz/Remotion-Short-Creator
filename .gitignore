@@ -50,4 +50,19 @@ out
 
 # media
 *.mp4
+*.jpg
+*.mp3
+*.json
 
+
+
+# workflow/local runtime data
+.uploads/
+.next/workflow-data/
+
+# generated project outputs only (scoped)
+public/projects/**
+
+# Agents
+.agents
+.github

@@ -15,6 +15,7 @@ import React, { useEffect, useState } from "react";
 type Segment = { start: number; end: number };
 type Short = {
   id: string;
+  title: string;
   segments: Segment[];
 };
 type Project = {
@@ -145,8 +146,8 @@ export const RemotionRoot: React.FC = () => {
         })),
       ).map(({ project, short }, index) => (
         <Composition
-          key={`${project.id}-${short.id ?? index}`}
-          id={`ShortCreator-${project.id}-${short.id ?? index}`}
+          key={`${short.id}-${index}`}
+          id={`ShortCreator-${short.id}-${index}`}
           component={ShortCreator}
           width={1080}
           height={1920}

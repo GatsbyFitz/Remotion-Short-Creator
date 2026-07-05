@@ -2,15 +2,6 @@ import { experimental_transcribe as transcribe } from "ai";
 import { openai } from '@ai-sdk/openai';
 import path from "path";
 import fs from "fs";
-import {
-  Input,
-  Output,
-  Conversion,
-  FilePathSource,
-  FilePathTarget,
-  Mp4OutputFormat,
-  MP4,
-} from 'mediabunny';
 import { openAiWhisperApiToCaptions } from "@remotion/openai-whisper";
 
 export async function transcribeVideoFile(project: string) {
@@ -20,34 +11,29 @@ export async function transcribeVideoFile(project: string) {
 
   const projectDir = path.join(inputDir, project);
   
-  const videoFile = fs
-  .readdirSync(projectDir)
-  .filter((file) => file.toLowerCase() !== "audio.mp4")
-  .find((file) => file.toLowerCase().endsWith(".mp4"));
+  const audioPath = path.join(projectDir, 'audio.mp4');
 
-  if (!videoFile) {
-    throw new Error(`No .mp4 file found in: ${projectDir}`);
+  if (!fs.existsSync(audioPath)) {
+    throw new Error(`Expected audio source file missing at: ${audioPath}`);
   }
 
-  const videoPath = path.join(projectDir, videoFile);
+  const stat = fs.statSync(audioPath);
+  if (!stat || stat.size === 0) {
+    throw new Error('Target audio.mp4 file is missing or empty');
+  }
 
-  const outPath = path.join(projectDir, `audio.mp4`);
-  const input = new Input({ source: new FilePathSource(videoPath), formats: [MP4] });
-  const output = new Output({ format: new Mp4OutputFormat(), target: new FilePathTarget(outPath) });
+  const MAX_SIZE_BYTES = 25 * 1024 * 1024; 
+  if (stat.size > MAX_SIZE_BYTES) {
+    throw new Error(
+      `The audio.mp4 file (${(stat.size / 1024 / 1024).toFixed(2)}MB) exceeds Whisper's 25MB limit.`
+    );
+  }
 
-  const conversion = await Conversion.init({
-    input,
-    output,
-    video: { discard: true },
-    audio: {}, // copy audio tracks if compatible (no encoder required)
-  });
+  console.log(`Loading audio.mp4 directly into memory. Size: ${(stat.size / 1024 / 1024).toFixed(2)} MB`);
 
-  await conversion.execute();
+  // Need to make audio.mp4 creation a client side activity with 64Kbps bitrate to ensure it stays under 25MB for transcription and compression. Use Mediabunny to create the audio.mp4 from the source video on
 
-  const stat = fs.statSync(outPath);
-  if (!stat || stat.size === 0) throw new Error('Converted audio missing or empty');
-
-  const audioBuffer = fs.readFileSync(outPath);
+  const audioBuffer = fs.readFileSync(audioPath);
   const result = await transcribe({
     model: openai.transcription('whisper-1'),
     audio: new Uint8Array(audioBuffer),

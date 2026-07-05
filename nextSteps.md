@@ -1,1 +1,0 @@
-Create a UI that allows me to generate a set of compositions that can be run using the studio!
