@@ -142,6 +142,7 @@ export async function extractFrames({src, timestampsInSeconds, onVideoSample, si
 const Home: NextPage = () => {
   const defaultWorkflowAction = "runShortsWorkflow";
   const [file, setFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [projectName, setProjectName] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState("");
@@ -173,6 +174,12 @@ const Home: NextPage = () => {
 
     if (!file) {
       setError("Please select an MP4 file to upload.");
+      setLoading(false);
+      return;
+    }
+
+    if (!thumbnailFile) {
+      setError("Please select a custom thumbnail image before creating the project.");
       setLoading(false);
       return;
     }
@@ -253,6 +260,24 @@ const Home: NextPage = () => {
 
       await completeResponse.json();
 
+      // 3.5 Upload Custom Thumbnail (required)
+      setFrameProgress("Uploading custom thumbnail...");
+      const thumbnailFormData = new FormData();
+      thumbnailFormData.append("thumbnail", thumbnailFile);
+      thumbnailFormData.append("projectId", projectId);
+
+      const thumbnailResponse = await fetch("/api/uploadThumbnail", {
+        method: "POST",
+        body: thumbnailFormData,
+      });
+
+      if (!thumbnailResponse.ok) {
+        const errorData = await thumbnailResponse.json().catch(() => ({}));
+        throw new Error(
+          (errorData as { error?: string }).error || "Failed to upload custom thumbnail",
+        );
+      }
+
       // ==========================================
       // FIXED MEDIABUNNY FRAME GENERATION FLOW
       // ==========================================
@@ -266,11 +291,10 @@ const Home: NextPage = () => {
             src: localVideoUrl,
             timestampsInSeconds: (options) => {
               const duration = options.durationInSeconds ?? 0;
-              const totalFramesToExtract = 5;
               const times: number[] = [];
 
               // Loop from 0 up to the total video duration, adding a timestamp every 1 second
-              for (let t = 0; t <= duration; t++) {
+              for (let t = 0; t <= duration; t+=3) {
                 times.push(t);
               }
               
@@ -290,8 +314,8 @@ const Home: NextPage = () => {
               const filename = `frame_${timestampInSeconds}s.jpg`;
 
               const canvas = document.createElement("canvas");
-              canvas.width = videoSample.displayWidth || 1280;
-              canvas.height = videoSample.displayHeight || 720;
+              canvas.width = 384;
+              canvas.height = 216;
               
               const ctx = canvas.getContext("2d");
               if (!ctx) return;
@@ -362,11 +386,15 @@ const Home: NextPage = () => {
           input: audioInputInstance,
           output: audioOutputInstance,
           video: { discard: true }, // Drop the video tracks
-          audio: { forceTranscode: true, bitrate: 64000 } // Let it pass-through or transcode to AAC naturally
+          audio: { forceTranscode: true, bitrate: 32000, numberOfChannels: 1 } // Let it pass-through or transcode to AAC naturally
         });
 
         if (conversion.isValid) {
           await conversion.execute();
+
+          if (!target.buffer) {
+            throw new Error("Audio conversion did not produce an output buffer.");
+          }
 
           const audioBlob = new Blob([target.buffer], { type: "audio/mp4" });
 
@@ -392,6 +420,7 @@ const Home: NextPage = () => {
       await loadProjects();
 
       setFile(null);
+      setThumbnailFile(null);
       setProjectName("");
       alert("Project created, frames processed, and audio uploaded successfully!");
     } catch (err) {
@@ -401,7 +430,6 @@ const Home: NextPage = () => {
       setFrameProgress("");
     }
   };
-
 
 
   const runWorkflow = async (projectName: string, action?: string) => {
@@ -481,6 +509,18 @@ const Home: NextPage = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-200">
+                  Upload Thumbnail (Required)
+                </label>
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="text-slate-100 align-middle file:mr-4 file:rounded-md file:border-0 file:text-slate-100 file:font-medium"
+                  onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
               {file ? (
                 <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
                   <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
@@ -488,6 +528,17 @@ const Home: NextPage = () => {
                   </div>
                   <div className="mt-2 break-all text-sm text-slate-100">
                     {file.name}
+                  </div>
+                </div>
+              ) : null}
+
+              {thumbnailFile ? (
+                <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
+                  <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
+                    Selected Thumbnail
+                  </div>
+                  <div className="mt-2 break-all text-sm text-slate-100">
+                    {thumbnailFile.name}
                   </div>
                 </div>
               ) : null}
@@ -523,7 +574,7 @@ const Home: NextPage = () => {
             </CardContent>
 
             <CardFooter className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={createProject} disabled={loading || !file}>
+              <Button variant="secondary" onClick={createProject} disabled={loading || !file || !thumbnailFile}>
                 {loading ? "Creating..." : "Create Project"}
               </Button>
             </CardFooter>

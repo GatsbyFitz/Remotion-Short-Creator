@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
         createdAt: uploadedAt,
         uploadedAt,
         fileSizeBytes: videoFileSizeBytes,
+        sourceVideoPath: `/projects/${projectId}/video.mp4`,
       },
       null,
       2,

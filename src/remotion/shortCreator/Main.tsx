@@ -6,6 +6,7 @@ import {
   useCurrentFrame,
   useDelayRender,
   useVideoConfig,
+  interpolate, // add this
 } from "remotion";
 import { Video } from "@remotion/media";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
@@ -64,10 +65,27 @@ const getTransition = (transition?: string) => {
     default:
       return fade();
   }
-}
+};
+
+const getSegmentVolume = (frame: number, durationInFrames: number, fadeFrames = 8) => {
+  const safeFade = Math.max(1, Math.min(fadeFrames, Math.floor(durationInFrames / 2)));
+
+  const fadeIn = interpolate(frame, [0, safeFade], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const fadeOut = interpolate(frame, [durationInFrames - safeFade, durationInFrames], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  return Math.min(fadeIn, fadeOut);
+};
 
 export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
   const { fps } = useVideoConfig();
+  const endScreenDurationInFrames = Math.round(5 * fps);
   const src = staticFile(`projects/${project}/video.mp4`);
   const [captions, setCaptions] = useState<Caption[] | null>(null);
   const { delayRender, continueRender, cancelRender } = useDelayRender();
@@ -91,7 +109,7 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
   }, [fetchCaptions]);
 
   return (
-    <TransitionSeries>
+    <TransitionSeries> 
       {segments.map((seg, i) => {
         const trimBefore = Math.floor(seg.start * fps);
         const trimAfter = Math.floor(seg.end * fps);
@@ -107,6 +125,7 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
                 _experimentalEffects={effects}
                 trimBefore={trimBefore}
                 trimAfter={trimAfter}
+                volume={(f) => getSegmentVolume(f, durFrames, 8)}
                 style={{
                   width: "100%",
                   height: "85%",
@@ -136,8 +155,8 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
 
         return [sequence];
       })}
-      <TransitionSeries.Sequence durationInFrames={30}>
-        <EndScreen />
+      <TransitionSeries.Sequence durationInFrames={endScreenDurationInFrames}>
+        <EndScreen project={project} />
       </TransitionSeries.Sequence>
     </TransitionSeries>
   );
@@ -167,10 +186,12 @@ export const calculateMetadata: CalculateMetadataFunction<Props> = async ({
     )
   );
 
+  const endScreenDurationInFrames = Math.round(5 * fps);
+
   return {
     props: { ...props, segments: normalized },
     fps,
-    durationInFrames: totalFrames,
+    durationInFrames: totalFrames + endScreenDurationInFrames,
   };
 };
 
@@ -241,7 +262,22 @@ const CaptionTrack: React.FC<{
   );
 };
 
-const EndScreen: React.FC = () => {
+
+const EndScreen: React.FC<{ project: string }> = ({ project }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const thumbnailPhaseFrames = Math.round(3 * fps); // first 3s
+  const showThumbnailPhase = frame < thumbnailPhaseFrames; // last 2s = profile
+
+  const candidates = [
+    staticFile(`projects/${project}/thumbnail.jpg`),
+    staticFile(`projects/${project}/thumbnail.jpeg`),
+    staticFile(`projects/${project}/thumbnail.png`),
+    staticFile(`projects/${project}/thumbnail.webp`),
+  ];
+  const [thumbIndex, setThumbIndex] = useState(0);
+
   return (
     <AbsoluteFill
       style={{
@@ -254,46 +290,64 @@ const EndScreen: React.FC = () => {
         fontFamily: BRAND_FONTS.primary,
       }}
     >
-      <div style={{ maxWidth: 900, textAlign: "center" }}>
+      {showThumbnailPhase ? (
         <Img
-          src={staticFile("profile.jpg")}
+          src={candidates[thumbIndex]}
+          onError={() => {
+            if (thumbIndex < candidates.length - 1) {
+              setThumbIndex((i) => i + 1);
+            }
+          }}
           style={{
-            width: 300,
-            height: 300,
-            borderRadius: "50%",
+            width: "100%",
+            borderRadius: 16,
             objectFit: "cover",
-            marginBottom: 32,
-            display: "block",
-            marginLeft: "auto",
-            marginRight: "auto",
+            aspectRatio: "16 / 9",
+            boxShadow: "0 8px 18px #E1FF62",
           }}
         />
-        <div style={{ fontSize: 28, letterSpacing: 2, color: "#94a3b8", marginBottom: 20 }}>
-          MORE HERE
+      ) : (
+        <div style={{ maxWidth: 900, textAlign: "center" }}>
+          <Img
+            src={staticFile("miscellaneous/profile.jpg")}
+            style={{
+              width: 300,
+              height: 300,
+              borderRadius: "50%",
+              objectFit: "cover",
+              marginBottom: 32,
+              display: "block",
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          />
+          <div style={{ fontSize: 28, letterSpacing: 2, color: "#94a3b8", marginBottom: 20 }}>
+            MORE HERE
+          </div>
+
+          <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.05 }}>
+            Gatsby Fitzgerald
+          </h1>
+
+          <p style={{ fontSize: 32, color: "#cbd5e1", marginTop: 24, marginBottom: 32 }}>
+            More full length videos on my YouTube channel
+          </p>
+
+          <div
+            style={{
+              display: "inline-block",
+              padding: "18px 28px",
+              borderRadius: 999,
+              border: "1px solid white",
+              fontSize: 28,
+              fontWeight: 700,
+              color: "#E1FF62",
+            }}
+          >
+            youtube.com/@GatsbyFitzgerald
+          </div>
         </div>
-
-        <h1 style={{ fontSize: 72, fontWeight: 800, margin: 0, lineHeight: 1.05 }}>
-          Gatsby Fitzgerald
-        </h1>
-
-        <p style={{ fontSize: 32, color: "#cbd5e1", marginTop: 24, marginBottom: 32 }}>
-          More full length videos on my YouTube channel
-        </p>
-
-        <div
-          style={{
-            display: "inline-block",
-            padding: "18px 28px",
-            borderRadius: 999,
-            border: "1px solid white",
-            fontSize: 28,
-            fontWeight: 700,
-            color: "#E1FF62",
-          }}
-        >
-          youtube.com/@GatsbyFitzgerald
-        </div>
-      </div>
+      )}
     </AbsoluteFill>
   );
 };

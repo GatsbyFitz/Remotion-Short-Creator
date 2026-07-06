@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
         {
           ...existingMetadata,
           frameCount: frames.length,
+          sourceVideoPath: `/projects/${project}/video.mp4`,
         },
         null,
         2,

@@ -62,6 +62,7 @@ out
 
 # generated project outputs only (scoped)
 public/projects/**
+public/miscellaneous/**
 
 # Agents
 .agents/
