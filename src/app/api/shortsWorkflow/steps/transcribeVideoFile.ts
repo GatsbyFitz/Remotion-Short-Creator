@@ -31,8 +31,6 @@ export async function transcribeVideoFile(project: string) {
 
   console.log(`Loading audio.mp4 directly into memory. Size: ${(stat.size / 1024 / 1024).toFixed(2)} MB`);
 
-  // Need to make audio.mp4 creation a client side activity with 64Kbps bitrate to ensure it stays under 25MB for transcription and compression. Use Mediabunny to create the audio.mp4 from the source video on
-
   const audioBuffer = fs.readFileSync(audioPath);
   const result = await transcribe({
     model: openai.transcription('whisper-1'),
@@ -41,7 +39,7 @@ export async function transcribeVideoFile(project: string) {
       openai: {
         response_format: 'verbose_json',
         language: 'en',
-        timestampGranularities: ['word'],
+        timestampGranularities: ['word', 'segment'],
       },
     },
   });
@@ -54,7 +52,7 @@ export async function transcribeVideoFile(project: string) {
     }
 
   const transcriptPath = path.join(projectDir, `transcript.json`);
-  fs.writeFileSync(transcriptPath, JSON.stringify(transcriptData, null, 2));
+  fs.writeFileSync(transcriptPath, JSON.stringify(transcription, null, 2));
 
   const {captions} = openAiWhisperApiToCaptions({transcription});
 
