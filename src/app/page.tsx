@@ -284,6 +284,8 @@ const Home: NextPage = () => {
       setFrameProgress("Initializing MediaBunny pipeline...");
       const localVideoUrl = URL.createObjectURL(file);
 
+      const pendingFrameUploads: Array<{ filename: string; blob: Blob }> = [];
+
       try {
         let frameIndex = 0;
 
@@ -297,59 +299,96 @@ const Home: NextPage = () => {
               for (let t = 0; t <= duration; t+=3) {
                 times.push(t);
               }
-              
+
               return times;
             },
 
 
             onVideoSample: async (videoSample) => {
               frameIndex++;
-              setFrameProgress(`MediaBunny decoding and uploading frame ${frameIndex}...`);
+              setFrameProgress(`MediaBunny decoding frame ${frameIndex}...`);
 
               // Calculate the timestamp in seconds (WebCodecs timestamps are usually in microseconds)
-              const timestampInSeconds = (typeof videoSample.timestamp === "number") 
-                ? videoSample.timestamp.toFixed(2) 
+              const timestampInSeconds = (typeof videoSample.timestamp === "number")
+                ? videoSample.timestamp.toFixed(2)
                 : `index_${frameIndex}`;
-    
+
               const filename = `frame_${timestampInSeconds}s.jpg`;
 
+              // Size the canvas to match the source aspect ratio, capped to a 720p
+              // bounding box (1280x720 landscape / 720x1280 portrait), so frames are
+              // downscaled without being cropped or squished.
+              const sourceWidth = videoSample.displayWidth;
+              const sourceHeight = videoSample.displayHeight;
+              const isPortrait = sourceHeight > sourceWidth;
+              const maxWidth = isPortrait ? 720 : 1280;
+              const maxHeight = isPortrait ? 1280 : 720;
+              const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight, 1);
+
               const canvas = document.createElement("canvas");
-              canvas.width = 384;
-              canvas.height = 216;
-              
+              canvas.width = Math.round(sourceWidth * scale);
+              canvas.height = Math.round(sourceHeight * scale);
+
               const ctx = canvas.getContext("2d");
               if (!ctx) return;
 
               if (typeof (videoSample as any).draw === "function") {
-                (videoSample as any).draw(ctx, 0, 0);
+                (videoSample as any).draw(ctx, 0, 0, canvas.width, canvas.height);
               } else {
                 const nativeFrame = (videoSample as any).toVideoFrame();
                 ctx.drawImage(nativeFrame, 0, 0, canvas.width, canvas.height);
                 nativeFrame.close();
               }
 
-              const frameBlob = await new Promise<Blob | null>((resolve) => 
+              // Drawing already copied the pixels out of videoSample, which mediabunny
+              // disposes as soon as this callback returns — so only the (cheap, local)
+              // blob encode happens here. The (slow, network) upload is queued and run
+              // afterwards through a bounded worker pool, instead of serializing every
+              // frame's fetch behind the next frame's decode.
+              const frameBlob = await new Promise<Blob | null>((resolve) =>
                 canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85)
               );
 
               if (!frameBlob) return;
 
-              const formData = new FormData();
-              // Updated to use the new dynamic filename
-              formData.append("frame", frameBlob, filename);
-              formData.append("projectId", projectId);
-
-              const frameResponse = await fetch("/api/uploadFrames", {
-                method: "POST",
-                body: formData,
-              });
-
-              if (!frameResponse.ok) {
-                throw new Error(`Failed uploading ${filename}`);
-              }
+              pendingFrameUploads.push({ filename, blob: frameBlob });
             }
           });
-          
+
+          const totalFrames = pendingFrameUploads.length;
+          let uploadedFrames = 0;
+          const frameConcurrency = Math.min(6, totalFrames);
+          let nextFrameIndex = 0;
+
+          const uploadFrame = async (index: number) => {
+            const { filename, blob } = pendingFrameUploads[index];
+
+            const formData = new FormData();
+            formData.append("frame", blob, filename);
+            formData.append("projectId", projectId);
+
+            const frameResponse = await fetch("/api/uploadFrames", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!frameResponse.ok) {
+              throw new Error(`Failed uploading ${filename}`);
+            }
+
+            uploadedFrames += 1;
+            setFrameProgress(`Uploading frame ${uploadedFrames}/${totalFrames}...`);
+          };
+
+          const frameWorkers = Array.from({ length: frameConcurrency }, async () => {
+            while (nextFrameIndex < totalFrames) {
+              const index = nextFrameIndex;
+              nextFrameIndex += 1;
+              await uploadFrame(index);
+            }
+          });
+
+          await Promise.all(frameWorkers);
         } catch (error) {
           console.error("Frame extraction failed:", error);
         }

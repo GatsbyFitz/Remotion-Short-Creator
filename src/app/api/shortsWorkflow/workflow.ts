@@ -10,8 +10,25 @@ export async function shortsWorkflow(project: string, action: string) {
   }
 
   if ( action === 'runShortsWorkflow' || action === 'regenerateInstructions') {
-  const { generateRemotionInstructions } = await import('./steps/generateInstructions');
-  await generateRemotionInstructions(project);
+    const { generateNarrativeCandidates } = await import('./steps/generateNarrativeCandidates');
+    const { generateInstructionsSkeleton } = await import('./steps/generateInstructionsSkeleton');
+    const { finalizeRemotionInstructions } = await import('./steps/finalizeRemotionInstructions');
+
+    const narrative = await generateNarrativeCandidates(project);
+    const skeleton = await generateInstructionsSkeleton(
+      narrative.cleansegments,
+      narrative.pass1Candidates,
+      narrative.visualCandidates,
+    );
+    await finalizeRemotionInstructions(
+      project,
+      narrative.cleansegments,
+      narrative.words,
+      narrative.videoDuration,
+      narrative.frames,
+      skeleton,
+      narrative.visualCandidates,
+    );
   }
 
   if (action === 'generateYoutubeChapters') {

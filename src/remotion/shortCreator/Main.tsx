@@ -337,8 +337,6 @@ const EndScreen: React.FC<{ project: string }> = ({ project }) => {
             style={{
               display: "inline-block",
               padding: "18px 28px",
-              borderRadius: 999,
-              border: "1px solid white",
               fontSize: 28,
               fontWeight: 700,
               color: "#E1FF62",
