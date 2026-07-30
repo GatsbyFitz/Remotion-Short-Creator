@@ -9,6 +9,13 @@ import { TwoYearTimeline, calculateTwoYearTimelineMetadata } from "./TwoYearTime
 import { FallingQuestionMarks, calculateMetadata as calculateFallingQuestionMarksMetadata } from "./FallingQuestionMarks/Main";
 import { MaxThreshold80, calculateMetadata as calculateMaxThreshold80Metadata } from "./MaxThreshold80/Main";
 import { PushUp100BlocksBuild, calculateMetadata as calculatePushUp100BlocksBuildMetadata } from "./PushUp100BlocksBuild/Main";
+import { PriorityList, calculateMetadata as calculatePriorityListMetadata } from "./PriorityList/Main";
+import { BlisterFormation, calculateMetadata as calculateBlisterFormationMetadata } from "./BlisterFormation/Main";
+import { TheoryToPractice, calculateMetadata as calculateTheoryToPracticeMetadata } from "./TheoryToPractice/Main";
+import { TableOfContents, calculateMetadata as calculateTableOfContentsMetadata } from "./TableOfContents/Main";
+import { ShearCyclesReduction, calculateMetadata as calculateShearCyclesReductionMetadata } from "./ShearCyclesReduction/Main";
+import { ShearMagnitudeReduction, calculateMetadata as calculateShearMagnitudeReductionMetadata } from "./ShearMagnitudeReduction/Main";
+import { ShearResilienceIncrease, calculateMetadata as calculateShearResilienceIncreaseMetadata } from "./ShearResilienceIncrease/Main";
 import React, { useEffect, useState } from "react";
 
 
@@ -136,6 +143,69 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         durationInFrames={300}
         calculateMetadata={calculatePushUp100BlocksBuildMetadata}
+      />
+      <Composition
+        id="PriorityList"
+        component={PriorityList}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculatePriorityListMetadata}
+      />
+      <Composition
+        id="BlisterFormation"
+        component={BlisterFormation}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={180}
+        calculateMetadata={calculateBlisterFormationMetadata}
+      />
+      <Composition
+        id="TheoryToPractice"
+        component={TheoryToPractice}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateTheoryToPracticeMetadata}
+      />
+      <Composition
+        id="TableOfContents"
+        component={TableOfContents}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={490}
+        calculateMetadata={calculateTableOfContentsMetadata}
+      />
+      <Composition
+        id="ShearCyclesReduction"
+        component={ShearCyclesReduction}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={180}
+        calculateMetadata={calculateShearCyclesReductionMetadata}
+      />
+      <Composition
+        id="ShearMagnitudeReduction"
+        component={ShearMagnitudeReduction}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={180}
+        calculateMetadata={calculateShearMagnitudeReductionMetadata}
+      />
+      <Composition
+        id="ShearResilienceIncrease"
+        component={ShearResilienceIncrease}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={180}
+        calculateMetadata={calculateShearResilienceIncreaseMetadata}
       />
       </Folder>
       <Folder name="Shorts">
