@@ -1,4 +1,3 @@
-import { generateText, Output } from "ai";
 import fs from "fs";
 import path from "node:path";
 import {
@@ -14,6 +13,7 @@ import {
   NarrativeCandidatesSchema,
   VisualCandidatesSchema,
   MAX_VISUAL_FRAMES,
+  generateStructuredWithRepair,
 } from "./instructionsShared";
 
 export type NarrativeCandidatesResult = {
@@ -89,8 +89,8 @@ export async function generateNarrativeCandidates(project: string): Promise<Narr
 
   const visualPassPromise =
     gapFrameMap.length > 0
-      ? generateText({
-          model: "alibaba/qwen3.7-plus",
+      ? generateStructuredWithRepair({
+          model: "google/gemini-3.7-flash",
           messages: [
             {
               role: "user",
@@ -113,25 +113,25 @@ export async function generateNarrativeCandidates(project: string): Promise<Narr
               ],
             },
           ],
-          output: Output.object({ schema: VisualCandidatesSchema }),
+          schema: VisualCandidatesSchema,
         })
       : Promise.resolve(null);
 
   const [pass1, visualPass] = await Promise.all([
-    generateText({
-      model: "deepseek/deepseek-v4-pro",
+    generateStructuredWithRepair({
+      model: "google/gemini-3.7-flash",
       messages: [
         {
           role: "user",
           content: [{ type: "text", text: pass1Prompt(cleansegments) }],
         },
       ],
-      output: Output.object({ schema: NarrativeCandidatesSchema }),
+      schema: NarrativeCandidatesSchema,
     }),
     visualPassPromise,
   ]);
 
-  const visualCandidates: VisualCandidate[] = (visualPass?._output.candidates ?? [])
+  const visualCandidates: VisualCandidate[] = (visualPass?.candidates ?? [])
     .filter((c) => c.worth_including && gapFrameMap[c.gapIndex])
     .map((c) => ({
       start: gapFrameMap[c.gapIndex].gap.start,
@@ -141,14 +141,14 @@ export async function generateNarrativeCandidates(project: string): Promise<Narr
 
   console.log("Visual gaps found:", visualGaps.length);
   console.log("Visual candidates worth including:", visualCandidates.length);
-  console.log("Pass 1 candidates:", pass1._output.candidates.length);
+  console.log("Pass 1 candidates:", pass1.candidates.length);
 
   return {
     cleansegments,
     words,
     videoDuration,
     frames,
-    pass1Candidates: pass1._output.candidates,
+    pass1Candidates: pass1.candidates,
     visualCandidates,
   };
 }

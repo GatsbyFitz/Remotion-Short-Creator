@@ -9,15 +9,15 @@ type ParentItem = {
 
 const MAIN_ITEMS: readonly ParentItem[] = [
   { label: "Preparation", children: ["Foot Care", "Socks", "Shoes"] },
-  { label: "Morning", children: ["Breakfast", "Hydration", "Warm-Up"] },
-  { label: "Racetime" },
+  { label: "Morning", children: ["Taping", "Lubing Up", "Ankle Lock"] },
+  { label: "Racetime", children: ["Take the 5", "Shoe Swaperoo", "Bone Dry"] },
 ];
 
 const X_MAIN = 90;
-const X_SUB = 190;
-const Y0 = 90;
-const MAIN_ROW_HEIGHT = 150;
-const SUB_OFFSET = 110;
+const X_SUB = 100;
+const Y0 = 50;
+const MAIN_ROW_HEIGHT = 70;
+const SUB_OFFSET = 65;
 
 const FADE_START = 10;
 const FADE_STEP = 15;
@@ -29,11 +29,12 @@ const DIM_OPACITY = 0.5;
 const COLOR_START = 85;
 const COLOR_END = 115;
 
-const INSERT_START = 150; // first chapter's first child slide-in
-const INSERT_STEP = 30; // 1s @ 30fps between each child within a chapter
+const INSERT_START = 180; // first chapter's first child slide-in (gap after it appears)
+const INSERT_STEP = 45; // time between each child within a chapter
 const CHILD_SETTLE_FRAMES = 40; // approx time for a child's spring to settle
-const CHAPTER_HOLD_FRAMES = 20; // hold once a chapter's children are all in
+const SWITCH_HOLD_FRAMES = 100; // hold once a chapter's children are all in, before handing off
 const SWITCH_DURATION = 30; // crossfade length when handing off to the next chapter
+const CHAPTER_TO_CHILD_DELAY = 130; // gap between a parent becoming active and its first child appearing
 
 const ITEM_SHADOW = "0 8px 20px rgba(0, 0, 0, 0.35)";
 
@@ -57,10 +58,10 @@ const chapters: Chapter[] = (() => {
     }
     const insertStart = cursor;
     const lastChildStart = insertStart + (childCount - 1) * INSERT_STEP;
-    const switchStart = lastChildStart + CHILD_SETTLE_FRAMES + CHAPTER_HOLD_FRAMES;
+    const switchStart = lastChildStart + CHILD_SETTLE_FRAMES + SWITCH_HOLD_FRAMES;
     const switchEnd = switchStart + SWITCH_DURATION;
     result.push({ parentIndex, insertStart, switchStart, switchEnd });
-    cursor = switchEnd + CHAPTER_HOLD_FRAMES;
+    cursor = switchEnd + CHAPTER_TO_CHILD_DELAY;
   });
 
   return result;
@@ -175,7 +176,7 @@ export const TableOfContents: React.FC = () => {
               top: parentTops[index],
               opacity,
               transform: `translateY(${rise}px)`,
-              fontSize: 68,
+              fontSize: 51,
               fontWeight: 700,
               letterSpacing: 0.5,
               color: BRAND_COLORS.yellow,
@@ -196,7 +197,7 @@ export const TableOfContents: React.FC = () => {
             top: parentTops[child.parentIndex] + SUB_OFFSET * (child.childIndex + 1),
             opacity: child.opacity,
             fontFamily: BRAND_FONTS.secondary,
-            fontSize: 46,
+            fontSize: 35,
             fontWeight: 600,
             letterSpacing: 0.5,
             color: BRAND_COLORS.pink,

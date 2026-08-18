@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { generateText, Output, NoObjectGeneratedError, type ModelMessage } from "ai";
 
 export type TranscriptSegment = { start: number; end: number; text: string };
 export type TranscriptWord = { word: string; start: number; end: number };
@@ -130,6 +131,7 @@ export const InstructionsSchema = z.object({
         id: z.string().min(1).transform(toKebab),
         title: z.string(),
         description: z.string(),
+        youtubeVideoUrl: z.string().url().optional(),
         segments: z
           .array(
             z.object({
@@ -151,19 +153,71 @@ export const NarrativeCandidatesSchema = z.object({
   candidates: z
     .array(
       z.object({
-        arcId: z.string().min(1).transform(toKebab),
-        title: z.string(),
-        hook: z.string(),
-        conflict: z.string(),
-        payoff: z.string(),
-        rationale: z.string(),
+        arcId: z
+          .string()
+          .min(1)
+          .describe("A short, unique, URL-safe slug for this narrative arc, e.g. 'overcoming-fear'.")
+          .transform(toKebab),
+        title: z.string().describe("A concise, social-media-friendly title for this narrative arc."),
+        hook: z.string().describe("The opening moment or line that grabs attention in the first few seconds."),
+        conflict: z.string().describe("The tension, problem, or stakes driving the middle of the story."),
+        payoff: z.string().describe("The resolution, lesson, or emotional payoff at the end."),
+        rationale: z.string().describe("One or two sentences on why this arc works well as a short-form video."),
       }),
     )
-    .min(5)
-    .max(5),
+    .min(3)
+    .max(7)
+    .describe("Distinct, compelling narrative arc candidates extracted from the transcript."),
 });
 
 export type NarrativeCandidate = z.infer<typeof NarrativeCandidatesSchema>["candidates"][number];
+
+export async function generateStructuredWithRepair<S extends z.ZodTypeAny>({
+  model,
+  messages,
+  schema,
+}: {
+  model: string;
+  messages: ModelMessage[];
+  schema: S;
+}): Promise<z.infer<S>> {
+  try {
+    const result = await generateText({ model, messages, output: Output.object({ schema }) });
+    return result.output as z.infer<S>;
+  } catch (err) {
+    if (!NoObjectGeneratedError.isInstance(err) || !err.text) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`generateStructuredWithRepair: model "${model}" failed: ${message}`, { cause: err });
+    }
+
+    console.warn(
+      `generateStructuredWithRepair: model "${model}" failed schema validation, attempting one repair pass:`,
+      err.message,
+    );
+
+    try {
+      const repair = await generateText({
+        model,
+        messages: [
+          ...messages,
+          { role: "assistant", content: err.text },
+          {
+            role: "user",
+            content: `That response did not match the required JSON schema. Error: ${err.message}\n\nReturn ONLY corrected JSON matching the schema — no prose, no markdown fences.`,
+          },
+        ],
+        output: Output.object({ schema }),
+      });
+      return repair.output as z.infer<S>;
+    } catch (repairErr) {
+      const repairMessage = repairErr instanceof Error ? repairErr.message : String(repairErr);
+      throw new Error(
+        `generateStructuredWithRepair: model "${model}" failed schema validation on both the initial attempt and the repair pass: ${repairMessage}`,
+        { cause: repairErr },
+      );
+    }
+  }
+}
 
 export const SkeletonSchema = z.object({
   shorts: z
@@ -193,10 +247,12 @@ export type Skeleton = z.infer<typeof SkeletonSchema>;
 export const VisualCandidatesSchema = z.object({
   candidates: z.array(
     z.object({
-      gapIndex: z.number().int().min(0),
-      description: z.string(),
-      worth_including: z.boolean(),
-      rationale: z.string(),
+      gapIndex: z.number().int().min(0).describe("The 0-based index of the gap this candidate refers to."),
+      description: z.string().describe("What's visually happening in this gap, in one or two sentences."),
+      worth_including: z
+        .boolean()
+        .describe("Whether this visual moment is compelling enough to use as a standalone segment."),
+      rationale: z.string().describe("One or two sentences on why this gap is (or isn't) worth including."),
     }),
   ),
 });
@@ -225,7 +281,7 @@ You are analyzing one long transcript to find strong short-form stories.
 Return only JSON matching the schema.
 
 Task:
-- Propose exactly 5 narrative candidates.
+- Propose between 3 and 7 distinct narrative candidates.
 - Each candidate should be distinct and compelling.
 - Focus on hook, conflict, payoff.
 - The narrative should be clear and engaging, suitable for short-form video.

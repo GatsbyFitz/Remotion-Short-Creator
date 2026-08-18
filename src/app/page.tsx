@@ -84,12 +84,12 @@ const Home = () => {
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-black">
+    <main className="relative min-h-screen w-full overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0">
         {DOTS.map((dot, index) => (
           <span
             key={index}
-            className="absolute rounded-full bg-white"
+            className="absolute rounded-full bg-foreground"
             style={{
               left: dot.left,
               top: dot.top,
@@ -103,10 +103,11 @@ const Home = () => {
 
       <div
         className={cn(
-          "fixed inset-x-0 top-16 z-10 flex justify-center gap-8 px-6 transition-transform duration-500 ease-out",
+          "fixed inset-x-0 top-0 z-10 flex items-center justify-center gap-8 px-6 transition-transform duration-500 ease-out",
           // Resting state (nothing open) sits vertically centered; once the
-          // panel rises, this shifts up to sit flush at the top-16 anchor.
-          panelVisible ? "translate-y-0" : "translate-y-[calc(50vh-176px)]",
+          // panel rises, this shifts up and the tiles flex to fill the
+          // 100px strip left above the panel (which starts at top-[100px]).
+          panelVisible ? "h-[100px] translate-y-0" : "translate-y-[calc(50vh-112px)]",
         )}
       >
         {TILES.map((tile) => (
@@ -116,13 +117,23 @@ const Home = () => {
             disabled={tile.disabled}
             onClick={() => setSelected(tile.id)}
             className={cn(
-              "flex h-56 w-72 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-6 text-center transition hover:border-white/30 hover:bg-white/[0.06]",
-              tile.disabled && "cursor-not-allowed opacity-40 hover:border-white/10 hover:bg-white/[0.03]",
-              selected === tile.id && "border-white/30 bg-white/[0.06]",
+              "flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card px-6 text-center transition-all duration-500 ease-out hover:border-primary hover:bg-card",
+              panelVisible ? "h-[50px] w-44" : "h-56 w-72",
+              tile.disabled && "cursor-not-allowed opacity-40 hover:border-border hover:bg-card",
+              selected === tile.id && "border-primary bg-card",
             )}
           >
-            <span className="text-lg font-semibold text-white">{tile.label}</span>
-            <span className="text-sm text-white/50">{tile.description}</span>
+            <span
+              className={cn(
+                "font-semibold text-foreground transition-all duration-500",
+                panelVisible ? "text-sm" : "text-lg",
+              )}
+            >
+              {tile.label}
+            </span>
+            {panelVisible ? null : (
+              <span className="text-sm text-muted-foreground transition-all duration-500">{tile.description}</span>
+            )}
           </button>
         ))}
       </div>
@@ -130,15 +141,15 @@ const Home = () => {
       {selected ? (
         <div
           className={cn(
-            "fixed inset-x-6 bottom-6 top-[300px] z-20 overflow-y-auto rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-sm transition-transform duration-500 ease-out",
+            "fixed inset-x-6 bottom-6 top-[100px] z-20 overflow-y-auto rounded-3xl border border-border bg-card backdrop-blur-sm transition-transform duration-500 ease-out",
             panelVisible ? "translate-y-0" : "translate-y-[120%]",
           )}
         >
-          <div className="sticky top-0 z-30 flex justify-end bg-gradient-to-b from-black/40 to-transparent p-4">
+          <div className="sticky top-0 z-30 flex justify-end bg-gradient-to-b from-background/40 to-transparent p-4">
             <button
               type="button"
               onClick={handleClose}
-              className="rounded-full border border-white/20 bg-black/60 px-3 py-1 text-xs text-white/70 backdrop-blur hover:text-white"
+              className="rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur hover:text-foreground"
             >
               Close
             </button>

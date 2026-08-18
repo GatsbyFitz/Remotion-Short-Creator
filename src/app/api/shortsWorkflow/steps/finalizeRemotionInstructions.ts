@@ -42,7 +42,7 @@ export async function finalizeRemotionInstructions(
   console.log("Selected frame count:", selectedFrames.length);
 
   const pass3 = await generateText({
-    model: "alibaba/qwen3.7-plus",
+    model: "google/gemini-3.7-flash",
     messages: [
       {
         role: "user",

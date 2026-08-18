@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 
-type Segment = { start: number; end: number };
-type Short = { id: string; segments: Segment[] };
+type Segment = { start: number; end: number; transition?: string; segment_purpose?: string };
+type Short = { id: string; title: string; description: string; youtubeVideoUrl?: string; segments: Segment[] };
 type Project = {
   id: string;
   name: string;

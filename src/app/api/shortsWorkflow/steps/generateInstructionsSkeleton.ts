@@ -19,7 +19,7 @@ export async function generateInstructionsSkeleton(
   "use step";
 
   const pass2 = await generateText({
-    model: "deepseek/deepseek-v4-pro",
+    model: "google/gemini-3.7-flash",
     messages: [
       {
         role: "user",

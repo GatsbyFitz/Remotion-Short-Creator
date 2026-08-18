@@ -26,11 +26,11 @@ const VideoGenerator: NextPage = () => {
   }
 
   return (
-    <div className="px-6 py-10 text-slate-100">
+    <div className="px-6 py-10 text-foreground">
       <h1 className="mb-4 text-3xl font-bold">Video Generator</h1>
       <form onSubmit={handleGenerateVideo} className="space-y-4">
         <div>
-          <label htmlFor="projectId" className="block text-sm font-medium text-slate-300">
+          <label htmlFor="projectId" className="block text-sm font-medium text-muted-foreground">
             Project ID
           </label>
           <input
@@ -38,10 +38,10 @@ const VideoGenerator: NextPage = () => {
             id="projectId"
             name="projectId"
             required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
           />
         </div>
-          <label htmlFor="videoSettings" className="block text-sm font-medium text-slate-300">
+          <label htmlFor="videoSettings" className="block text-sm font-medium text-muted-foreground">
             Video Settings (JSON)
           </label>
           <textarea
@@ -49,7 +49,7 @@ const VideoGenerator: NextPage = () => {
             name="videoSettings"
             required
             rows={4}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-input bg-background text-foreground shadow-sm focus:border-ring focus:ring-ring sm:text-sm"
           ></textarea>
           </form>
         </div>

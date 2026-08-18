@@ -12,26 +12,41 @@ import {
 } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import type { NextPage } from "next";
-import { 
-  ALL_FORMATS, 
+import {
+  ALL_FORMATS,
+  BlobSource,
   Input as BunnyInput, // Aliased to avoid naming conflict with shadcn UI Input
-  UrlSource, 
-  VideoSample, 
-  VideoSampleSink 
+  UrlSource,
+  VideoSample,
+  VideoSampleSink
 } from 'mediabunny';
+
+type Short = {
+  id: string;
+  title: string;
+  description: string;
+  youtubeVideoUrl?: string;
+  segments: { start: number; end: number; transition?: string; segment_purpose?: string }[];
+};
 
 type Project = {
   id: string;
   name: string;
-  shorts: Array<{
-    id: string;
-    segments: { start: number; end: number }[];
-  }>;
+  shorts: Short[];
   renderCount: number;
   uploadedAt: string | null;
   fileSizeBytes: number | null;
   audioFileSizeBytes: number | null;
   frameCount: number | null;
+};
+
+type ShortUiState = {
+  title?: string;
+  description?: string;
+  saving?: boolean;
+  uploading?: boolean;
+  error?: string;
+  success?: string;
 };
 
 const formatFileSize = (bytes: number | null): string => {
@@ -150,6 +165,8 @@ const ShortsWorkflow: NextPage = () => {
   const [progressBytes, setProgressBytes] = useState(0);
   const [projectActions, setProjectActions] = useState<Record<string, string>>({});
   const [frameProgress, setFrameProgress] = useState("");
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [shortEdits, setShortEdits] = useState<Record<string, ShortUiState>>({});
 
   const loadProjects = async () => {
     try {
@@ -183,6 +200,28 @@ const ShortsWorkflow: NextPage = () => {
       setLoading(false);
       return;
     }
+
+    setFrameProgress("Checking video compatibility...");
+    {
+      using probeInput = new BunnyInput({ formats: ALL_FORMATS, source: new BlobSource(file) });
+      const probeVideoTrack = await probeInput.getPrimaryVideoTrack();
+
+      if (!probeVideoTrack) {
+        setError("Couldn't find a readable video track in this file.");
+        setLoading(false);
+        return;
+      }
+
+      if (!(await probeVideoTrack.canDecode())) {
+        const codec = await probeVideoTrack.getCodec();
+        setError(
+          `Your browser can't decode this video's codec${codec ? ` (${codec})` : ""}. Try a different browser or convert the file first.`,
+        );
+        setLoading(false);
+        return;
+      }
+    }
+    setFrameProgress("");
 
     const chunkSize = 64 * 1024 * 1024;
     const totalChunks = Math.ceil(file.size / chunkSize);
@@ -496,22 +535,85 @@ const ShortsWorkflow: NextPage = () => {
     }
   };
 
+  const getShortField = (short: Short, field: "title" | "description") =>
+    shortEdits[short.id]?.[field] ?? short[field];
+
+  const setShortField = (shortId: string, field: "title" | "description", value: string) =>
+    setShortEdits((prev) => ({ ...prev, [shortId]: { ...prev[shortId], [field]: value } }));
+
+  const setShortState = (shortId: string, patch: Partial<ShortUiState>) =>
+    setShortEdits((prev) => ({ ...prev, [shortId]: { ...prev[shortId], ...patch } }));
+
+  const shortDurationSeconds = (short: Short) =>
+    short.segments.reduce((sum, seg) => sum + Math.max(0, seg.end - seg.start), 0);
+
+  const saveShort = async (projectId: string, short: Short) => {
+    setShortState(short.id, { saving: true, error: undefined, success: undefined });
+    try {
+      const title = getShortField(short, "title");
+      const description = getShortField(short, "description");
+      const response = await fetch("/api/updateShort", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, shortId: short.id, title, description }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { error?: string }).error || "Failed to save short");
+      }
+
+      await loadProjects();
+      setShortState(short.id, { saving: false, success: "Saved." });
+    } catch (err) {
+      setShortState(short.id, {
+        saving: false,
+        error: err instanceof Error ? err.message : "Failed to save short",
+      });
+    }
+  };
+
+  const uploadShortToYoutube = async (projectId: string, shortId: string) => {
+    setShortState(shortId, { uploading: true, error: undefined });
+    try {
+      const response = await fetch("/api/uploadToYoutube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, shortId }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to upload to YouTube");
+      }
+
+      await loadProjects();
+      setShortState(shortId, { uploading: false });
+    } catch (err) {
+      setShortState(shortId, {
+        uploading: false,
+        error: err instanceof Error ? err.message : "Failed to upload to YouTube",
+      });
+    }
+  };
+
+  const openProject = projects.find((p) => p.id === openProjectId) ?? null;
 
   return (
-    <div className="px-6 py-10 text-slate-100">
+    <div className="px-6 py-10 text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10">
         <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <Card className="border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/20 backdrop-blur">
+          <Card className="border-border bg-card shadow-2xl shadow-black/20 backdrop-blur">
             <CardHeader>
-              <CardTitle className="text-2xl text-slate-100">Create Project</CardTitle>
-              <CardDescription className="text-slate-100">
+              <CardTitle className="text-2xl text-foreground">Create Project</CardTitle>
+              <CardDescription className="text-foreground">
                 Select an MP4 to create a new project folder.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">
+                <label className="text-sm font-medium text-foreground">
                   Project Name
                 </label>
                 <Input
@@ -519,81 +621,81 @@ const ShortsWorkflow: NextPage = () => {
                   placeholder="My Next Short"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
-                  className="text-slate-100 placeholder:text-slate-500"
+                  className="text-foreground placeholder:text-muted-foreground"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">
-                  Upload MP4
+                <label className="text-sm font-medium text-foreground">
+                  Upload MP4 or MOV
                 </label>
                 <Input
                   type="file"
-                  accept="video/mp4"
-                  className="text-slate-100 align-middle file:mr-4 file:rounded-md file:border-0 file:text-slate-100 file:font-medium"
+                  accept="video/mp4,video/quicktime,.mp4,.mov"
+                  className="text-foreground align-middle file:mr-4 file:rounded-md file:border-0 file:text-foreground file:font-medium"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">
+                <label className="text-sm font-medium text-foreground">
                   Upload Thumbnail (Required)
                 </label>
                 <Input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  className="text-slate-100 align-middle file:mr-4 file:rounded-md file:border-0 file:text-slate-100 file:font-medium"
+                  className="text-foreground align-middle file:mr-4 file:rounded-md file:border-0 file:text-foreground file:font-medium"
                   onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
                 />
               </div>
 
               {file ? (
-                <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-                  <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <div className="text-xs uppercase tracking-[0.25em] text-foreground">
                     Selected File
                   </div>
-                  <div className="mt-2 break-all text-sm text-slate-100">
+                  <div className="mt-2 break-all text-sm text-foreground">
                     {file.name}
                   </div>
                 </div>
               ) : null}
 
               {thumbnailFile ? (
-                <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-                  <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <div className="text-xs uppercase tracking-[0.25em] text-foreground">
                     Selected Thumbnail
                   </div>
-                  <div className="mt-2 break-all text-sm text-slate-100">
+                  <div className="mt-2 break-all text-sm text-foreground">
                     {thumbnailFile.name}
                   </div>
                 </div>
               ) : null}
 
               {projectName.trim() ? (
-                <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-                  <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <div className="text-xs uppercase tracking-[0.25em] text-foreground">
                     Project Name
                   </div>
-                  <div className="mt-2 break-all text-sm text-slate-100">
+                  <div className="mt-2 break-all text-sm text-foreground">
                     {projectName.trim()}
                   </div>
                 </div>
               ) : null}
 
               {loading && file ? (
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-muted-foreground">
                   Uploading: {(progressBytes / (1024 * 1024)).toFixed(2)} MB / {(file.size / (1024 * 1024)).toFixed(2)} MB
                 </div>
               ) : null}
 
               {frameProgress ? (
-                <div className="text-xs text-cyan-400 font-mono animate-pulse mt-1">
+                <div className="text-xs text-primary font-mono animate-pulse mt-1">
                   🐰 {frameProgress}
                 </div>
               ) : null}
 
               {error ? (
-                <div className="rounded-lg border border-red-900/50 bg-red-950/40 p-4 text-sm text-red-300">
+                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
                   {error}
                 </div>
               ) : null}
@@ -606,26 +708,26 @@ const ShortsWorkflow: NextPage = () => {
             </CardFooter>
           </Card>
 
-          <Card className="border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/20 backdrop-blur">
+          <Card className="border-border bg-card shadow-2xl shadow-black/20 backdrop-blur">
             <CardHeader>
-              <CardTitle className="text-xl text-slate-100">Project Summary</CardTitle>
+              <CardTitle className="text-xl text-foreground">Project Summary</CardTitle>
             </CardHeader>
 
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-                  <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <div className="text-xs uppercase tracking-[0.25em] text-foreground">
                     Total Projects
                   </div>
-                  <div className="mt-2 text-2xl font-semibold text-cyan-300">
+                  <div className="mt-2 text-2xl font-semibold text-primary">
                     {projects.length}
                   </div>
                 </div>
-                <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-                  <div className="text-xs uppercase tracking-[0.25em] text-slate-100">
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <div className="text-xs uppercase tracking-[0.25em] text-foreground">
                     Ready
                   </div>
-                  <div className="mt-2 text-2xl font-semibold text-emerald-300">
+                  <div className="mt-2 text-2xl font-semibold text-primary">
                     {projects.filter((project) => project.renderCount > 0).length}
                   </div>
                 </div>
@@ -635,90 +737,217 @@ const ShortsWorkflow: NextPage = () => {
         </section>
 
         <section>
-          <div className="mb-4">
-            <h2 className="text-2xl font-semibold tracking-tight">Projects</h2>
-          </div>
+          {openProject ? (
+            <>
+              <div className="mb-4 flex items-center gap-3">
+                <Button variant="secondary" size="sm" onClick={() => setOpenProjectId(null)}>
+                  ← Back to Projects
+                </Button>
+                <h2 className="truncate text-2xl font-semibold tracking-tight">{openProject.name}</h2>
+              </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                className="border-slate-800 bg-slate-900/75 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-cyan-500/40"
-              >
-                <CardHeader>
-                  <CardTitle className="truncate text-lg text-slate-100">{project.name}</CardTitle>
-                  <CardDescription className="text-slate-100">{project.renderCount} shorts</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    Project ID: {project.id}
+              <div className="flex flex-col gap-6">
+                <Card className="border-border bg-card">
+                  <CardContent className="space-y-3 pt-6">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Project ID: {openProject.id}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Uploaded: {formatUploadedAt(openProject.uploadedAt)}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Video file size: {formatFileSize(openProject.fileSizeBytes)}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Audio file size: {formatFileSize(openProject.audioFileSizeBytes)}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Frames: {openProject.frameCount}
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          aria-label={`Select workflow action for ${openProject.name}`}
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                          value={projectActions[openProject.id] ?? defaultWorkflowAction}
+                          onChange={(e) => {
+                            const nextAction = e.target.value;
+                            setProjectActions((prev) => ({
+                              ...prev,
+                              [openProject.id]: nextAction,
+                            }));
+                          }}
+                          disabled={loading}
+                        >
+                          <option value="runShortsWorkflow">Run Shorts Workflow</option>
+                          <option value="regenerateInstructions">Regenerate Instructions</option>
+                          <option value="generateYoutubeChapters">Generate YouTube Chapters</option>
+                        </select>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            void runWorkflow(openProject.id, projectActions[openProject.id] ?? defaultWorkflowAction)
+                          }
+                          disabled={loading}
+                        >
+                          {loading ? "Running..." : "Run Action"}
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${openProject.id}/instructions.json`, "_blank")}>
+                          View Instructions
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${openProject.id}/youtube_chapters.txt`, "_blank")}>
+                          View Youtube Chapters
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div>
+                  <h3 className="mb-3 text-lg font-semibold tracking-tight">Shorts</h3>
+                  <div className="flex flex-col gap-4">
+                    {openProject.shorts.map((short) => {
+                      const state = shortEdits[short.id];
+                      return (
+                        <Card key={short.id} className="border-border bg-card">
+                          <CardContent className="space-y-3 pt-6">
+                            <Input
+                              value={getShortField(short, "title")}
+                              onChange={(e) => setShortField(short.id, "title", e.target.value)}
+                              placeholder="Short title"
+                              className="text-foreground"
+                            />
+                            <textarea
+                              value={getShortField(short, "description")}
+                              onChange={(e) => setShortField(short.id, "description", e.target.value)}
+                              placeholder="Short description"
+                              rows={3}
+                              className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none"
+                            />
+                            <div className="text-xs text-muted-foreground">
+                              {short.segments.length} segments · {shortDurationSeconds(short).toFixed(1)}s
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => void saveShort(openProject.id, short)}
+                                disabled={state?.saving}
+                              >
+                                {state?.saving ? "Saving..." : "Save"}
+                              </Button>
+
+                              {short.youtubeVideoUrl ? (
+                                <a
+                                  href={short.youtubeVideoUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sm text-primary hover:underline"
+                                >
+                                  View on YouTube ↗
+                                </a>
+                              ) : (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => void uploadShortToYoutube(openProject.id, short.id)}
+                                  disabled={state?.uploading}
+                                >
+                                  {state?.uploading ? "Uploading..." : "Upload to YouTube"}
+                                </Button>
+                              )}
+                            </div>
+
+                            {state?.error ? (
+                              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+                                {state.error}
+                              </div>
+                            ) : null}
+                            {state?.success ? (
+                              <div className="text-xs text-primary">{state.success}</div>
+                            ) : null}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+
+                    {openProject.shorts.length === 0 ? (
+                      <Card className="border-border bg-card">
+                        <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                          No shorts yet — run the workflow above to generate some.
+                        </CardContent>
+                      </Card>
+                    ) : null}
                   </div>
-                  <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    Uploaded: {formatUploadedAt(project.uploadedAt)}
-                  </div>
-                  <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    Video file size: {formatFileSize(project.fileSizeBytes)}
-                  </div>
-                   <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    Audio file size: {formatFileSize(project.audioFileSizeBytes)}
-                  </div>
-                     <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    Frames: {project.frameCount}
-                  </div>
-                  <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        aria-label={`Select workflow action for ${project.name}`}
-                        className="h-8 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100"
-                        value={projectActions[project.id] ?? defaultWorkflowAction}
-                        onChange={(e) => {
-                          const nextAction = e.target.value;
-                          setProjectActions((prev) => ({
-                            ...prev,
-                            [project.id]: nextAction,
-                          }));
-                        }}
-                        disabled={loading}
-                      >
-                        <option value="runShortsWorkflow">Run Shorts Workflow</option>
-                        <option value="regenerateInstructions">Regenerate Instructions</option>
-                        <option value="generateYoutubeChapters">Generate YouTube Chapters</option>
-                      </select>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-4">
+                <h2 className="text-2xl font-semibold tracking-tight">Projects</h2>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {projects.map((project) => (
+                  <Card
+                    key={project.id}
+                    onClick={() => setOpenProjectId(project.id)}
+                    className="cursor-pointer border-border bg-card shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-primary"
+                  >
+                    <CardHeader>
+                      <CardTitle className="truncate text-lg text-foreground">{project.name}</CardTitle>
+                      <CardDescription className="text-foreground">{project.renderCount} shorts</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Project ID: {project.id}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Uploaded: {formatUploadedAt(project.uploadedAt)}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Video file size: {formatFileSize(project.fileSizeBytes)}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Audio file size: {formatFileSize(project.audioFileSizeBytes)}
+                      </div>
+                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                        Frames: {project.frameCount}
+                      </div>
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => 
-                          void runWorkflow(project.id, projectActions[project.id] ?? defaultWorkflowAction)
-                        }
-                        disabled={loading}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void fetch(`/api/deleteProject?provisionId=${project.id}`, { method: "DELETE" }).then(() =>
+                            window.location.reload(),
+                          );
+                        }}
                       >
-                        {loading ? "Running..." : "Run Action"}
-                      </Button>
-                    </div>
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/instructions.json`, "_blank")}>
-                        View Instructions
-                      </Button>
-                       <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${project.id}/youtube_chapters.txt`, "_blank")}>
-                        View Youtube Chapters
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => fetch(`/api/deleteProject?provisionId=${project.id}`, { method: "DELETE" }).then(() => window.location.reload())}>
                         Delete Project
                       </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </CardContent>
+                  </Card>
+                ))}
 
-            {projects.length === 0 ? (
-              <Card className="border-slate-800 bg-slate-900/75">
-                <CardContent className="py-10 text-center text-sm text-slate-400">
-                  No projects found yet.
-                </CardContent>
-              </Card>
-            ) : null}
-          </div>
+                {projects.length === 0 ? (
+                  <Card className="border-border bg-card">
+                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                      No projects found yet.
+                    </CardContent>
+                  </Card>
+                ) : null}
+              </div>
+            </>
+          )}
         </section>
       </div>
     </div>
