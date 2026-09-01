@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const fileName = `thumbnail${ext}`;
     const thumbnailPath = path.join(projectDir, fileName);
     const bytes = await thumbnail.arrayBuffer();
-    fs.writeFileSync(thumbnailPath, Buffer.from(bytes));
+    fs.writeFileSync(thumbnailPath, new Uint8Array(bytes));
 
     const relativePath = `/projects/${safeProjectId}/${fileName}`;
 

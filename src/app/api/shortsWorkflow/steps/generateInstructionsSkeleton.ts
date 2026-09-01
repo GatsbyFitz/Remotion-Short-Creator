@@ -34,7 +34,7 @@ export async function generateInstructionsSkeleton(
     output: Output.object({ schema: SkeletonSchema }),
   });
 
-  console.log("Pass 2 shorts:", pass2._output.shorts.length);
+  console.log("Pass 2 shorts:", pass2.output.shorts.length);
 
-  return pass2._output;
+  return pass2.output;
 }

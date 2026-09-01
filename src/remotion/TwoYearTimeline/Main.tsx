@@ -22,11 +22,6 @@ export const TwoYearTimeline: React.FC = () => {
     easing: Easing.bezier(0.16, 1, 0.3, 1),
   });
 
-  const titleOpacity = interpolate(frame, [0, 24], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
   const markerScale = spring({
     fps,
     frame,

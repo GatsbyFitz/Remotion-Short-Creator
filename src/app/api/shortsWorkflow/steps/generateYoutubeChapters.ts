@@ -50,7 +50,7 @@ export async function generateYouTubeChapters(project: string) {
       output: Output.object({ schema: ChaptersSchema }),
     });
 
-    const { chapters } = result._output;
+    const { chapters } = result.output;
 
     // Helper to format seconds into HH:MM:SS or MM:SS
     const formatTimestamp = (totalSeconds: number): string => {

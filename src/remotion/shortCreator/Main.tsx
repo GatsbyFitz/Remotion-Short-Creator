@@ -10,6 +10,7 @@ import {
 } from "remotion";
 import { Video } from "@remotion/media";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
+import type { TransitionPresentation } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
 import { wipe } from "@remotion/transitions/wipe";
@@ -48,23 +49,33 @@ const getEffects = (effect?: SegmentEffect) => {
   }
 };
 
-const getTransition = (transition?: string) => {
-  switch (transition) {
-    case "fade":
-      return fade();
-    case "slide":
-      return slide();
-    case "wipe":
-      return wipe();
-    case "flip":
-      return flip();
-    case "iris":
-      return iris();
-    case "clockWipe":
-      return clockWipe();
-    default:
-      return fade();
-  }
+// iris() and clockWipe() are the only presentations that need the canvas size.
+// Each presentation carries its own props type, and that union is not
+// assignable to TransitionSeries.Transition, hence the single cast on the way
+// out rather than one per branch.
+const getTransition = (
+  transition: string | undefined,
+  { width, height }: { width: number; height: number },
+): TransitionPresentation<Record<string, unknown>> => {
+  const presentation = (() => {
+    switch (transition) {
+      case "slide":
+        return slide();
+      case "wipe":
+        return wipe();
+      case "flip":
+        return flip();
+      case "iris":
+        return iris({ width, height });
+      case "clockWipe":
+        return clockWipe({ width, height });
+      case "fade":
+      default:
+        return fade();
+    }
+  })();
+
+  return presentation as TransitionPresentation<Record<string, unknown>>;
 };
 
 const getSegmentVolume = (frame: number, durationInFrames: number, fadeFrames = 8) => {
@@ -84,7 +95,7 @@ const getSegmentVolume = (frame: number, durationInFrames: number, fadeFrames = 
 };
 
 export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
   const endScreenDurationInFrames = Math.round(5 * fps);
   const src = staticFile(`projects/${project}/video.mp4`);
   const [captions, setCaptions] = useState<Caption[] | null>(null);
@@ -115,14 +126,14 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
         const trimAfter = Math.floor(seg.end * fps);
         const durFrames = Math.max(1, trimAfter - trimBefore);
         const effects = getEffects(seg.effect);
-        const transition = getTransition(seg.transition);
+        const transition = getTransition(seg.transition, { width, height });
 
         const sequence = (
           <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
             <AbsoluteFill style={{ backgroundColor: "#020617" }}>
               <Video
                 src={src}
-                _experimentalEffects={effects}
+                effects={effects}
                 trimBefore={trimBefore}
                 trimAfter={trimAfter}
                 volume={(f) => getSegmentVolume(f, durFrames, 8)}

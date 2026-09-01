@@ -1,11 +1,11 @@
 "use client";
 
 import type { NextPage } from "next";
-import { SubmitEvent } from "react";
+import type { FormEvent } from "react";
 
 const VideoGenerator: NextPage = () => {
 
-  async function handleGenerateVideo(event: SubmitEvent<HTMLFormElement>) {
+  async function handleGenerateVideo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget)

@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Convert the File object arrayBuffer into a Node.js Buffer
     const bytes = await frameFile.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const buffer = new Uint8Array(bytes);
 
     // 4. Safe filepath using the filename passed by FormData ('frame_0.jpg')
     const filePath = path.join(targetDir, frameFile.name);

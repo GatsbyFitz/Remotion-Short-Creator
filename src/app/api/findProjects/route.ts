@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { readEnv } from "../../../lib/env";
 
 type Segment = { start: number; end: number; transition?: string; segment_purpose?: string };
 type Short = { id: string; title: string; description: string; youtubeVideoUrl?: string; segments: Segment[] };
@@ -15,8 +16,11 @@ type Project = {
   frameCount: number | null; // Added to structural type definition
 };
 
+// The Remotion Studio calls this from its own origin. On a server that origin
+// is not localhost, so it has to be configurable.
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "http://localhost:3001",
+  "Access-Control-Allow-Origin":
+    readEnv("REMOTION_STUDIO_ORIGIN") ?? "http://localhost:3001",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };

@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    # Bound to localhost so the app is not exposed publicly. Reach it over
+    # Tailscale, an SSH tunnel, or a reverse proxy that terminates TLS and
+    # handles auth — there is no authentication in the app itself.
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      # One render at a time already; this caps threads within that render.
+      # Roughly one per core, and lower if the box starts swapping.
+      RENDER_CONCURRENCY: "${RENDER_CONCURRENCY:-2}"
+    volumes:
+      # Project data: uploads, frames, transcripts, instructions.json.
+      - ./data/projects:/app/public/projects
+      # Rendered shorts. uploadToYoutube reads from here too.
+      - ./data/out:/app/out
+      # End-screen branding. Gitignored, so it has to be supplied at runtime —
+      # a render fails without profile.jpg.
+      - ./data/miscellaneous:/app/public/miscellaneous
+    # Chromium needs more than Docker's default 64MB of shared memory, or
+    # renders crash partway through with an opaque browser error.
+    shm_size: "1gb"

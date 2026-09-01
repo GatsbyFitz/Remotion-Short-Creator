@@ -70,7 +70,7 @@ export async function finalizeRemotionInstructions(
     videoDuration === undefined ? time : Math.min(Math.max(time, 0), videoDuration);
 
   const RemotionInstructions = {
-    shorts: pass3._output.shorts.map((short) => ({
+    shorts: pass3.output.shorts.map((short) => ({
       ...short,
       segments: short.segments.map((segment) => {
         const clampedStart = clampToDuration(segment.start);

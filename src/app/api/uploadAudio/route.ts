@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Convert the File object arrayBuffer into a Node.js Buffer
     const bytes = await audioFile.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const buffer = new Uint8Array(bytes);
 
     // 4. Safe filepath using the explicit filename ('audio.mp4', 'audio.aac', etc.)
     const filePath = path.join(targetDir, audioFile.name);

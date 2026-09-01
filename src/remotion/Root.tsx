@@ -17,6 +17,7 @@ import { ShearCyclesReduction, calculateMetadata as calculateShearCyclesReductio
 import { ShearMagnitudeReduction, calculateMetadata as calculateShearMagnitudeReductionMetadata } from "./ShearMagnitudeReduction/Main";
 import { ShearResilienceIncrease, calculateMetadata as calculateShearResilienceIncreaseMetadata } from "./ShearResilienceIncrease/Main";
 import React, { useEffect, useState } from "react";
+import { SHORT_CREATOR_COMP_ID } from "../../types/constants";
 
 
 type Segment = { start: number; end: number };
@@ -32,9 +33,14 @@ type Project = {
   renderCount: number;
 };
 
+// The Studio runs on a different origin to the Next app, so this has to be an
+// absolute URL. On a server it is not localhost, hence the env var. Remotion
+// inlines REMOTION_-prefixed vars into the bundle.
+const APP_URL = process.env.REMOTION_APP_URL ?? "http://localhost:3000";
+
 async function fetchProjects(): Promise<Project[]> {
   try {
-    const response = await fetch("http://localhost:3000/api/findProjects");
+    const response = await fetch(`${APP_URL}/api/findProjects`);
     if (!response.ok) {
       throw new Error(`Failed to fetch projects: ${response.statusText}`);
     }
@@ -208,6 +214,23 @@ export const RemotionRoot: React.FC = () => {
         calculateMetadata={calculateShearResilienceIncreaseMetadata}
       />
       </Folder>
+      {/*
+        Headless render target. The per-short compositions below only exist once
+        the Studio has fetched the project list over HTTP, which makes them
+        unreachable from a server-side render. This one has a stable id and
+        takes its segments from inputProps, so /api/render can drive it without
+        the Studio running and without a network round-trip.
+      */}
+      <Composition
+        id={SHORT_CREATOR_COMP_ID}
+        component={ShortCreator}
+        width={1080}
+        height={1920}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateMetadata}
+        defaultProps={{ segments: [], project: "" }}
+      />
       <Folder name="Shorts">
       {projects.flatMap((project) =>
         project.shorts.map((short) => ({

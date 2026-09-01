@@ -1,6 +1,6 @@
 import { Metadata, Viewport } from "next";
 import "../../styles/global.css";
-import { Figtree, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import { cn } from "@//lib/utils";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});

@@ -49,6 +49,25 @@ type ShortUiState = {
   success?: string;
 };
 
+// Mirrors the RenderJob shape returned by /api/render.
+type RenderJob = {
+  id: string;
+  projectId: string;
+  shortId: string;
+  shortTitle: string;
+  status: "queued" | "preparing" | "rendering" | "done" | "error" | "cancelled";
+  progress: number | null;
+  phase: string;
+  outputUrl?: string;
+  error?: string;
+};
+
+const ACTIVE_RENDER_STATUSES: RenderJob["status"][] = [
+  "queued",
+  "preparing",
+  "rendering",
+];
+
 const formatFileSize = (bytes: number | null): string => {
   if (bytes === null || !Number.isFinite(bytes) || bytes < 0) {
     return "Unknown";
@@ -167,6 +186,7 @@ const ShortsWorkflow: NextPage = () => {
   const [frameProgress, setFrameProgress] = useState("");
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [shortEdits, setShortEdits] = useState<Record<string, ShortUiState>>({});
+  const [renderJobs, setRenderJobs] = useState<Record<string, RenderJob>>({});
 
   const loadProjects = async () => {
     try {
@@ -597,6 +617,74 @@ const ShortsWorkflow: NextPage = () => {
     }
   };
 
+  // Renders run server-side and outlive the page, so progress is polled rather
+  // than streamed — a dropped phone connection or a refresh then costs nothing.
+  const startRender = async (projectId: string, shortId?: string) => {
+    if (shortId) setShortState(shortId, { error: undefined, success: undefined });
+    try {
+      const response = await fetch("/api/render", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, shortId }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        jobs?: RenderJob[];
+        error?: string;
+      };
+
+      if (!response.ok) throw new Error(data.error || "Failed to start render");
+
+      setRenderJobs((prev) => {
+        const next = { ...prev };
+        for (const job of data.jobs ?? []) next[job.shortId] = job;
+        return next;
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to start render";
+      if (shortId) setShortState(shortId, { error: message });
+      else setError(message);
+    }
+  };
+
+  const cancelRender = async (jobId: string) => {
+    await fetch(`/api/render?jobId=${encodeURIComponent(jobId)}`, { method: "DELETE" });
+  };
+
+  useEffect(() => {
+    if (!openProjectId) return;
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `/api/render?projectId=${encodeURIComponent(openProjectId)}`,
+        );
+        if (!response.ok) return;
+        const { jobs } = (await response.json()) as { jobs: RenderJob[] };
+        if (cancelled) return;
+
+        // listJobs is newest-first, so the first job seen per short wins.
+        const latest: Record<string, RenderJob> = {};
+        for (const job of jobs) if (!latest[job.shortId]) latest[job.shortId] = job;
+        setRenderJobs(latest);
+      } catch {
+        // A failed poll is not worth surfacing; the next tick will retry.
+      }
+    };
+
+    void poll();
+    const interval = setInterval(() => void poll(), 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [openProjectId]);
+
+  const activeRenderCount = Object.values(renderJobs).filter((job) =>
+    ACTIVE_RENDER_STATUSES.includes(job.status),
+  ).length;
+
   const openProject = projects.find((p) => p.id === openProjectId) ?? null;
 
   return (
@@ -810,10 +898,28 @@ const ShortsWorkflow: NextPage = () => {
                 </Card>
 
                 <div>
-                  <h3 className="mb-3 text-lg font-semibold tracking-tight">Shorts</h3>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold tracking-tight">Shorts</h3>
+                    {openProject.shorts.length > 0 ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void startRender(openProject.id)}
+                        disabled={activeRenderCount > 0}
+                      >
+                        {activeRenderCount > 0
+                          ? `Rendering (${activeRenderCount} left)...`
+                          : "Render all"}
+                      </Button>
+                    ) : null}
+                  </div>
                   <div className="flex flex-col gap-4">
                     {openProject.shorts.map((short) => {
                       const state = shortEdits[short.id];
+                      const job = renderJobs[short.id];
+                      const rendering = job
+                        ? ACTIVE_RENDER_STATUSES.includes(job.status)
+                        : false;
                       return (
                         <Card key={short.id} className="border-border bg-card">
                           <CardContent className="space-y-3 pt-6">
@@ -844,6 +950,36 @@ const ShortsWorkflow: NextPage = () => {
                                 {state?.saving ? "Saving..." : "Save"}
                               </Button>
 
+                              {rendering ? (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => void cancelRender(job.id)}
+                                >
+                                  Cancel render
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => void startRender(openProject.id, short.id)}
+                                  disabled={activeRenderCount > 0}
+                                >
+                                  {job?.status === "done" ? "Re-render" : "Render"}
+                                </Button>
+                              )}
+
+                              {job?.status === "done" && job.outputUrl ? (
+                                <a
+                                  href={job.outputUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sm text-primary hover:underline"
+                                >
+                                  Preview ↗
+                                </a>
+                              ) : null}
+
                               {short.youtubeVideoUrl ? (
                                 <a
                                   href={short.youtubeVideoUrl}
@@ -864,6 +1000,35 @@ const ShortsWorkflow: NextPage = () => {
                                 </Button>
                               )}
                             </div>
+
+                            {job && rendering ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>{job.phase}</span>
+                                  {job.progress !== null ? (
+                                    <span>{Math.round(job.progress * 100)}%</span>
+                                  ) : null}
+                                </div>
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                  <div
+                                    className="h-full rounded-full bg-primary transition-[width] duration-500"
+                                    style={{
+                                      width:
+                                        job.progress !== null
+                                          ? `${Math.round(job.progress * 100)}%`
+                                          : "100%",
+                                      opacity: job.progress !== null ? 1 : 0.4,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {job?.status === "error" && job.error ? (
+                              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+                                Render failed: {job.error}
+                              </div>
+                            ) : null}
 
                             {state?.error ? (
                               <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">

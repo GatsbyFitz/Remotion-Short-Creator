@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -26,7 +27,7 @@ export async function PUT(request: NextRequest) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 
   const chunkPath = path.join(uploadsDir, `${index}.part`);
-  const nodeStream = Readable.fromWeb(request.body as unknown as ReadableStream);
+  const nodeStream = Readable.fromWeb(request.body as unknown as NodeReadableStream);
   const out = fs.createWriteStream(chunkPath);
 
   await new Promise<void>((resolve, reject) => {
