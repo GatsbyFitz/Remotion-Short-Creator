@@ -22,7 +22,7 @@ import type { Caption } from "@remotion/captions";
 import { grayscale } from "@remotion/effects/grayscale";
 import { invert } from "@remotion/effects/invert";
 import { scale } from "@remotion/effects/scale";
-import { BRAND_FONTS } from "../theme";
+import { BRAND_COLORS, BRAND_FONTS } from "../theme";
 
 type SegmentEffect = "grayscale" | "invert" | "scale";
 
@@ -33,10 +33,17 @@ type Segment = {
   transition?: string;
 };
 
-type Props = { segments: Segment[]; project: string };
+type Props = { segments: Segment[]; project: string; title?: string };
 
-// Slight rounding on the edges of the enlarged footage (composition is 1080x1920).
-const FOOTAGE_BORDER_RADIUS = 48;
+// The footage fills the middle band of the frame; the header and captions live in
+// the equal empty bands above and below it (composition is 1080x1920).
+const FOOTAGE_HEIGHT_RATIO = 0.8;
+const EDGE_BAND_RATIO = (1 - FOOTAGE_HEIGHT_RATIO) / 2;
+
+// Vertical fade applied to the footage so it dissolves into the background at the
+// top and bottom edges instead of ending on a hard line.
+const FOOTAGE_EDGE_FADE = "9%";
+const FOOTAGE_EDGE_FADE_MASK = `linear-gradient(to bottom, transparent 0%, #000 ${FOOTAGE_EDGE_FADE}, #000 calc(100% - ${FOOTAGE_EDGE_FADE}), transparent 100%)`;
 
 const getEffects = (effect?: SegmentEffect) => {
   switch (effect) {
@@ -86,7 +93,7 @@ const getSegmentVolume = (frame: number, durationInFrames: number, fadeFrames = 
   return Math.min(fadeIn, fadeOut);
 };
 
-export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
+export const ShortCreator: React.FC<Props> = ({ segments, project, title }) => {
   const { fps } = useVideoConfig();
   const endScreenDurationInFrames = Math.round(5 * fps);
   const src = staticFile(`projects/${project}/video.mp4`);
@@ -126,13 +133,13 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
               <div
                 style={{
                   width: "100%",
-                  height: "85%",
+                  height: `${FOOTAGE_HEIGHT_RATIO * 100}%`,
                   margin: "auto",
-                  borderRadius: FOOTAGE_BORDER_RADIUS,
                   overflow: "hidden",
-                  // Keeps the rounded corners from being clipped away by the
-                  // browser's rasterization of the video layer.
-                  WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+                  // Dissolve the footage into the background at the top and bottom
+                  // edges rather than a hard cut.
+                  maskImage: FOOTAGE_EDGE_FADE_MASK,
+                  WebkitMaskImage: FOOTAGE_EDGE_FADE_MASK,
                   transform: "translateZ(0)",
                 }}
               >
@@ -145,7 +152,6 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
                   style={{
                     width: "100%",
                     height: "100%",
-                    borderRadius: FOOTAGE_BORDER_RADIUS,
                   }}
                   objectFit="cover"
                 />
@@ -155,6 +161,7 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
                 segmentStartMs={seg.start * 1000}
                 segmentEndMs={seg.end * 1000}
               />
+              <ShortHeader title={title} />
             </AbsoluteFill>
           </TransitionSeries.Sequence>
         );
@@ -212,13 +219,90 @@ export const calculateMetadata: CalculateMetadataFunction<Props> = async ({
   };
 };
 
+const YouTubeGlyph: React.FC<{ height?: number }> = ({ height = 30 }) => (
+  <svg
+    viewBox="0 0 28 20"
+    height={height}
+    width={(height * 28) / 20}
+    role="img"
+    aria-label="YouTube"
+  >
+    <path
+      d="M27.4 3.12A3.52 3.52 0 0 0 24.92.64C22.74.05 14 .05 14 .05S5.26.05 3.08.64A3.52 3.52 0 0 0 .6 3.12 36.9 36.9 0 0 0 0 10a36.9 36.9 0 0 0 .6 6.88 3.52 3.52 0 0 0 2.48 2.48C5.26 19.95 14 19.95 14 19.95s8.74 0 10.92-.59a3.52 3.52 0 0 0 2.48-2.48A36.9 36.9 0 0 0 28 10a36.9 36.9 0 0 0-.6-6.88Z"
+      fill="#FF0000"
+    />
+    <path d="M11.2 14.29 18.53 10 11.2 5.71Z" fill="#ffffff" />
+  </svg>
+);
+
+// Sits in the empty band above the centred footage. Clipped to that band's height
+// so a long title can't spill onto the video.
+const ShortHeader: React.FC<{ title?: string }> = ({ title }) => {
+  const { height } = useVideoConfig();
+  const bandHeight = height * EDGE_BAND_RATIO;
+
+  return (
+  <div
+    style={{
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: bandHeight,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      padding: "0 56px",
+      overflow: "hidden",
+      textAlign: "center",
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <YouTubeGlyph height={30} />
+      <span
+        style={{
+          fontFamily: BRAND_FONTS.primary,
+          fontSize: 30,
+          fontWeight: 700,
+          color: "#ffffff",
+          letterSpacing: 0.5,
+        }}
+      >
+        Gatsby Fitzgerald
+      </span>
+    </div>
+    {title ? (
+      <span
+        style={{
+          fontFamily: BRAND_FONTS.primary,
+          fontSize: 38,
+          fontWeight: 800,
+          lineHeight: 1.1,
+          color: BRAND_COLORS.yellow,
+          textShadow: "0 2px 6px rgba(0,0,0,0.45)",
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 2,
+          overflow: "hidden",
+        }}
+      >
+        {title}
+      </span>
+    ) : null}
+  </div>
+  );
+};
+
 const CaptionTrack: React.FC<{
   captions: Caption[];
   segmentStartMs: number;
   segmentEndMs: number;
 }> = ({ captions, segmentStartMs, segmentEndMs }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, height } = useVideoConfig();
+  const bandHeight = height * EDGE_BAND_RATIO;
   const absoluteTimeMs = segmentStartMs + (frame / fps) * 1000;
 
   const pages = useMemo(() => {
@@ -247,14 +331,30 @@ const CaptionTrack: React.FC<{
   });
 
   return (
-    <AbsoluteFill
+    <div
       style={{
-        justifyContent: "flex-end",
+        // Span exactly the empty band below the centred footage and centre the
+        // caption within it, mirroring <ShortHeader> at the top.
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: height - bandHeight,
+        height: bandHeight,
+        display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        paddingBottom: 10,
+        justifyContent: "center",
       }}
     >
-      <div style={{ fontSize: 80, fontWeight: "bold", textAlign: "center", whiteSpace: "pre" }}>
+      <div
+        style={{
+          fontSize: 70,
+          fontWeight: "bold",
+          textAlign: "center",
+          whiteSpace: "pre",
+          lineHeight: 1,
+        }}
+      >
         {activePage.tokens.map((token) => {
           const isActive = activeToken
             ? token.fromMs === activeToken.fromMs && token.toMs === activeToken.toMs
@@ -275,7 +375,7 @@ const CaptionTrack: React.FC<{
           );
         })}
       </div>
-    </AbsoluteFill>
+    </div>
   );
 };
 

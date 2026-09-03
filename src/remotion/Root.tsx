@@ -242,6 +242,7 @@ export const RemotionRoot: React.FC = () => {
           defaultProps={{
             segments: short.segments,
             project: project.id,
+            title: short.title,
           }}
         />
       ))}
