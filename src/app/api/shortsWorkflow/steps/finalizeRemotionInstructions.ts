@@ -75,8 +75,13 @@ export async function finalizeRemotionInstructions(
       segments: short.segments.map((segment) => {
         const clampedStart = clampToDuration(segment.start);
         const clampedEnd = clampToDuration(segment.end);
+        const focusX =
+          typeof segment.focusX === "number" && Number.isFinite(segment.focusX)
+            ? Math.min(1, Math.max(0, segment.focusX))
+            : undefined;
         return {
           ...segment,
+          ...(focusX === undefined ? {} : { focusX }),
           start: snapToWordBoundary(clampedStart, words, "start"),
           end: snapToWordBoundary(clampedEnd, words, "end"),
         };

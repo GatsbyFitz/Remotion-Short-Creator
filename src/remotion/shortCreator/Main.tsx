@@ -31,6 +31,9 @@ type Segment = {
   end: number;
   effect?: SegmentEffect;
   transition?: string;
+  // Horizontal focal point of the cover-crop, 0..1 (0 = keep left edge, 0.5 =
+  // centred, 1 = keep right edge). Absent -> centred, identical to the default.
+  focusX?: number;
 };
 
 type Props = { segments: Segment[]; project: string; title?: string };
@@ -152,6 +155,13 @@ export const ShortCreator: React.FC<Props> = ({ segments, project, title }) => {
                   style={{
                     width: "100%",
                     height: "100%",
+                    // Landscape footage is cover-cropped to the vertical band; the
+                    // fit is height-bound so there is horizontal slack to pan. This
+                    // slides which part of the width is kept; it always fills the
+                    // full width. Absent focusX -> "50% 50%", the CSS default.
+                    objectPosition: `${
+                      Math.round((seg.focusX ?? 0.5) * 1000) / 10
+                    }% 50%`,
                   }}
                   objectFit="cover"
                 />
@@ -196,6 +206,10 @@ export const calculateMetadata: CalculateMetadataFunction<Props> = async ({
       end: Number(s.end),
       effect: s.effect,
       transition: s.transition,
+      focusX:
+        s.focusX == null || !Number.isFinite(Number(s.focusX))
+          ? undefined
+          : Math.min(1, Math.max(0, Number(s.focusX))),
     }))
     .filter(
       (s) =>

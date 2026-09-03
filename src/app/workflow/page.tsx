@@ -26,7 +26,7 @@ type Short = {
   title: string;
   description: string;
   youtubeVideoUrl?: string;
-  segments: { start: number; end: number; transition?: string; segment_purpose?: string }[];
+  segments: { start: number; end: number; transition?: string; segment_purpose?: string; focusX?: number }[];
 };
 
 type Project = {

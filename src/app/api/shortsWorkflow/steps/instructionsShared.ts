@@ -139,6 +139,12 @@ export const InstructionsSchema = z.object({
               end: z.number(),
               transition: TransitionSchema,
               segment_purpose: z.string().optional(),
+              focusX: z
+                .number()
+                .optional()
+                .describe(
+                  "Horizontal focal point of the crop, 0..1: 0 keeps the LEFT edge of the footage in view, 0.5 = centred (default), 1 keeps the RIGHT edge. The footage always fills the full width; only the horizontal crop window moves. Omit or use 0.5 to keep the shot centred.",
+                ),
             }),
           )
           .min(4)
@@ -349,6 +355,12 @@ Narrative structure:
 - Segment 1 is a strong hook.
 - Middle segments escalate or deepen story.
 - Final segment provides payoff, lesson, or CTA.
+
+Horizontal framing (focusX):
+- For each segment, look only at that segment's attached frames.
+- The footage is landscape, cropped to a vertical 9:16 window that ALWAYS fills the full width of the short. Only the horizontal crop position can move; it never leaves a gap.
+- Set "focusX" in [0,1] so the important subject/action stays in view: 0 keeps the left edge, 1 keeps the right edge, 0.5 is centred.
+- Use 0.5 (or omit) when the subject is central, spans the frame, or you are unsure. Only move it when the subject is clearly toward one side.
 
 Visual-only windows available (no speech present, pre-vetted as visually worthwhile):
 ${JSON.stringify(visualCandidates)}

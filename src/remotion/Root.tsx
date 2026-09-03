@@ -19,7 +19,7 @@ import { ShearResilienceIncrease, calculateMetadata as calculateShearResilienceI
 import React, { useEffect, useState } from "react";
 
 
-type Segment = { start: number; end: number };
+type Segment = { start: number; end: number; focusX?: number };
 type Short = {
   id: string;
   title: string;
