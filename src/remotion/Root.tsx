@@ -1,4 +1,4 @@
-import { Composition, Folder } from "remotion";
+import { Composition, Folder, continueRender, delayRender } from "remotion";
 import { ShortCreator, calculateMetadata } from "./shortCreator/Main";
 import { PushUpTypes, calculateMetadata as calculatePushUpTypesMetadata } from "./PushUpTypes/Main";
 import { ThreeBlocksReveal, calculateMetadata as calculateThreeBlocksRevealMetadata } from "./ThreeBlocksReveal/Main";
@@ -32,27 +32,44 @@ type Project = {
   renderCount: number;
 };
 
+// Overridable so renders that don't run alongside the Next dev server (CLI, CI,
+// Vercel sandbox) can point at a reachable host. Remotion only exposes env vars
+// prefixed with `REMOTION_` to the bundle.
+const FIND_PROJECTS_URL =
+  process.env.REMOTION_FIND_PROJECTS_URL ?? "http://localhost:3000/api/findProjects";
+
 async function fetchProjects(): Promise<Project[]> {
-  try {
-    const response = await fetch("http://localhost:3000/api/findProjects");
-    if (!response.ok) {
-      throw new Error(`Failed to fetch projects: ${response.statusText}`);
-    }
-    const data = await response.json();
-    return data as Project[];
-  } catch (error) {
-    console.error("Error fetching projects:", error);
-    return [];
-}
+  const response = await fetch(FIND_PROJECTS_URL);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch projects from ${FIND_PROJECTS_URL}: ${response.status} ${response.statusText}`,
+    );
+  }
+  return (await response.json()) as Project[];
 }
 
 export const RemotionRoot: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  // Block composition enumeration until the project list has loaded. Without this,
+  // `remotion render` / Studio's render entry read the composition list before the
+  // fetch resolves and the `ShortCreator-*` entries simply don't exist yet, failing
+  // with "Could not find composition with ID ShortCreator-...".
+  const [handle] = useState(() =>
+    delayRender("Fetching projects for <ShortCreator> compositions"),
+  );
 
   useEffect(() => {
-    void fetchProjects().then(setProjects);
-    console.log("Fetched projects:", projects);
-  }, []);
+    fetchProjects()
+      .then((data) => {
+        setProjects(data);
+        continueRender(handle);
+      })
+      .catch((error: unknown) => {
+        // Don't hang the render; proceed with no Shorts compositions and surface why.
+        console.error("Error fetching projects for Remotion Root:", error);
+        continueRender(handle);
+      });
+  }, [handle]);
 
   return (
     <>

@@ -229,6 +229,9 @@ const ShortsWorkflow: NextPage = () => {
     const fallbackProjectName = file.name.replace(/\.[^.]+$/, "").trim();
     const resolvedProjectName = trimmedProjectName || fallbackProjectName || "Untitled Project";
 
+    // Declared out here so the object URL is revoked in `finally` on every exit path.
+    let localVideoUrl = "";
+
     try {
       // 1. Initialize Upload
       const startResponse = await fetch("/api/upload/start", { method: "POST", headers: { "x-project-name": resolvedProjectName } });
@@ -321,7 +324,7 @@ const ShortsWorkflow: NextPage = () => {
       // FIXED MEDIABUNNY FRAME GENERATION FLOW
       // ==========================================
       setFrameProgress("Initializing MediaBunny pipeline...");
-      const localVideoUrl = URL.createObjectURL(file);
+      localVideoUrl = URL.createObjectURL(file);
 
       const pendingFrameUploads: Array<{ filename: string; blob: Blob }> = [];
 
@@ -447,50 +450,57 @@ const ShortsWorkflow: NextPage = () => {
         // ==========================================
         setFrameProgress("Extracting and converting audio stream with MediaBunny...");
 
-        const { Input, Output, BufferTarget, Conversion, UrlSource, ALL_FORMATS, Mp4OutputFormat  } = await import('mediabunny');
+        {
+          const { Input, Output, BufferTarget, Conversion, UrlSource, ALL_FORMATS, Mp4OutputFormat } =
+            await import('mediabunny');
 
-        const audioInputInstance = new Input({
-          formats: ALL_FORMATS,
-          source: new UrlSource(localVideoUrl),
-        });
-
-        const target = new BufferTarget();
-        const audioOutputInstance = new Output({
-          format: new Mp4OutputFormat(),
-          target: target,
-        });
-
-        const conversion = await Conversion.init({
-          input: audioInputInstance,
-          output: audioOutputInstance,
-          video: { discard: true }, // Drop the video tracks
-          audio: { forceTranscode: true, bitrate: 32000, numberOfChannels: 1 } // Let it pass-through or transcode to AAC naturally
-        });
-
-        if (conversion.isValid) {
-          await conversion.execute();
-
-          if (!target.buffer) {
-            throw new Error("Audio conversion did not produce an output buffer.");
-          }
-
-          const audioBlob = new Blob([target.buffer], { type: "audio/mp4" });
-
-          setFrameProgress("Uploading audio.mp4 track package...");
-          const audioFormData = new FormData();
-          audioFormData.append("audio", audioBlob, "audio.mp4");
-          audioFormData.append("projectId", projectId);
-
-          const audioResponse = await fetch("/api/uploadAudio", {
-            method: "POST",
-            body: audioFormData,
+          // `using` disposes the Input (and the decode pipeline `Conversion` spins up)
+          // when this block exits, on both the success and error paths. Without it,
+          // mediabunny's look-ahead queue of already-decoded AudioSamples is dropped
+          // unclosed and later surfaces as the "AudioSample was garbage collected" log.
+          using audioInputInstance = new Input({
+            formats: ALL_FORMATS,
+            source: new UrlSource(localVideoUrl),
           });
 
-          if (!audioResponse.ok) {
-            throw new Error("Failed to upload stripped audio track.");
+          const target = new BufferTarget();
+          const audioOutputInstance = new Output({
+            format: new Mp4OutputFormat(),
+            target: target,
+          });
+
+          const conversion = await Conversion.init({
+            input: audioInputInstance,
+            output: audioOutputInstance,
+            video: { discard: true }, // Drop the video tracks
+            audio: { forceTranscode: true, bitrate: 32000, numberOfChannels: 1 } // Let it pass-through or transcode to AAC naturally
+          });
+
+          if (conversion.isValid) {
+            await conversion.execute();
+
+            if (!target.buffer) {
+              throw new Error("Audio conversion did not produce an output buffer.");
+            }
+
+            const audioBlob = new Blob([target.buffer], { type: "audio/mp4" });
+
+            setFrameProgress("Uploading audio.mp4 track package...");
+            const audioFormData = new FormData();
+            audioFormData.append("audio", audioBlob, "audio.mp4");
+            audioFormData.append("projectId", projectId);
+
+            const audioResponse = await fetch("/api/uploadAudio", {
+              method: "POST",
+              body: audioFormData,
+            });
+
+            if (!audioResponse.ok) {
+              throw new Error("Failed to upload stripped audio track.");
+            }
+          } else {
+            console.warn("Audio conversion configuration mismatch:", conversion.discardedTracks);
           }
-        } else {
-          console.warn("Audio conversion configuration mismatch:", conversion.discardedTracks);
         }
         // ==========================================
 
@@ -504,6 +514,9 @@ const ShortsWorkflow: NextPage = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create project");
     } finally {
+      if (localVideoUrl) {
+        URL.revokeObjectURL(localVideoUrl);
+      }
       setLoading(false);
       setFrameProgress("");
     }

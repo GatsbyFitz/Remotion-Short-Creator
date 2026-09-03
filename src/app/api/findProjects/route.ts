@@ -15,8 +15,12 @@ type Project = {
   frameCount: number | null; // Added to structural type definition
 };
 
+// Remotion renders (Studio's "Render" button, `remotion render`) load the bundle
+// from an ephemeral localhost port, not :3001, so the fetch in Root.tsx that
+// registers the `ShortCreator-*` compositions was being CORS-blocked in the render
+// context. This is GET-only, credential-free local dev data, so allow any origin.
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "http://localhost:3001",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
