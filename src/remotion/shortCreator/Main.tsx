@@ -35,6 +35,9 @@ type Segment = {
 
 type Props = { segments: Segment[]; project: string };
 
+// Slight rounding on the edges of the enlarged footage (composition is 1080x1920).
+const FOOTAGE_BORDER_RADIUS = 48;
+
 const getEffects = (effect?: SegmentEffect) => {
   switch (effect) {
     case "grayscale":
@@ -120,19 +123,33 @@ export const ShortCreator: React.FC<Props> = ({ segments, project }) => {
         const sequence = (
           <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
             <AbsoluteFill style={{ backgroundColor: "#020617" }}>
-              <Video
-                src={src}
-                _experimentalEffects={effects}
-                trimBefore={trimBefore}
-                trimAfter={trimAfter}
-                volume={(f) => getSegmentVolume(f, durFrames, 8)}
+              <div
                 style={{
                   width: "100%",
                   height: "85%",
                   margin: "auto",
+                  borderRadius: FOOTAGE_BORDER_RADIUS,
+                  overflow: "hidden",
+                  // Keeps the rounded corners from being clipped away by the
+                  // browser's rasterization of the video layer.
+                  WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+                  transform: "translateZ(0)",
                 }}
-                objectFit="cover"
-              />
+              >
+                <Video
+                  src={src}
+                  _experimentalEffects={effects}
+                  trimBefore={trimBefore}
+                  trimAfter={trimAfter}
+                  volume={(f) => getSegmentVolume(f, durFrames, 8)}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: FOOTAGE_BORDER_RADIUS,
+                  }}
+                  objectFit="cover"
+                />
+              </div>
               <CaptionTrack
                 captions={captions ?? []}
                 segmentStartMs={seg.start * 1000}
