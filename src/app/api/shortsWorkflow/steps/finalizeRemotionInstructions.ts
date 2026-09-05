@@ -75,13 +75,16 @@ export async function finalizeRemotionInstructions(
       segments: short.segments.map((segment) => {
         const clampedStart = clampToDuration(segment.start);
         const clampedEnd = clampToDuration(segment.end);
-        const focusX =
-          typeof segment.focusX === "number" && Number.isFinite(segment.focusX)
-            ? Math.min(1, Math.max(0, segment.focusX))
-            : undefined;
+        // Framing is decided by the visual-framing QA pass that runs after this
+        // step, against the final snapped segments. This pass shares
+        // InstructionsSchema, so the model can still emit focusX/scale from the
+        // schema shape alone even though nothing here asks for it — drop them so
+        // the QA pass is the single source of truth.
+        const rest = { ...segment };
+        delete rest.focusX;
+        delete rest.scale;
         return {
-          ...segment,
-          ...(focusX === undefined ? {} : { focusX }),
+          ...rest,
           start: snapToWordBoundary(clampedStart, words, "start"),
           end: snapToWordBoundary(clampedEnd, words, "end"),
         };

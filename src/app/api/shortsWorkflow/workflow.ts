@@ -29,6 +29,17 @@ export async function shortsWorkflow(project: string, action: string) {
       skeleton,
       narrative.visualCandidates,
     );
+
+    // Framing QA runs last, against the final snapped segments.
+    const { generateVisualFraming } = await import('./steps/generateVisualFraming');
+    await generateVisualFraming(project);
+  }
+
+  // Re-run just the framing QA over an existing instructions.json, without
+  // regenerating any timing or narrative.
+  if (action === 'refineVisualFraming') {
+    const { generateVisualFraming } = await import('./steps/generateVisualFraming');
+    await generateVisualFraming(project);
   }
 
   if (action === 'generateYoutubeChapters') {

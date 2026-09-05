@@ -83,6 +83,35 @@ export const framesForGap = (frames: FrameItem[], gap: VisualGap, maxCount: numb
     .slice(0, maxCount);
 };
 
+// Frames spread evenly across a segment's own duration, rather than clustered
+// near its midpoint the way `framesForGap` is. For the framing QA pass the
+// edges of a segment matter as much as its middle — a clipped watermark or
+// caption is just as likely to appear at either end as in the centre.
+export const framesSpanningSegment = (
+  frames: FrameItem[],
+  segment: { start: number; end: number },
+  maxCount: number,
+): FrameItem[] => {
+  const inWindow = frames
+    .filter(
+      (f) => Number.isFinite(f.second) && f.second >= segment.start - 0.5 && f.second <= segment.end + 0.5,
+    )
+    .sort((a, b) => a.second - b.second);
+
+  if (inWindow.length <= maxCount) return inWindow;
+
+  const bucketSize = inWindow.length / maxCount;
+  const picked: FrameItem[] = [];
+
+  for (let i = 0; i < maxCount; i++) {
+    const from = Math.floor(i * bucketSize);
+    const bucket = inWindow.slice(from, Math.max(from + 1, Math.floor((i + 1) * bucketSize)));
+    picked.push(bucket[Math.floor(bucket.length / 2)]);
+  }
+
+  return picked;
+};
+
 export const toKebab = (value: string) =>
   value
     .toLowerCase()
@@ -141,9 +170,19 @@ export const InstructionsSchema = z.object({
               segment_purpose: z.string().optional(),
               focusX: z
                 .number()
+                .min(0)
+                .max(1)
                 .optional()
                 .describe(
-                  "Horizontal focal point of the crop, 0..1: 0 keeps the LEFT edge of the footage in view, 0.5 = centred (default), 1 keeps the RIGHT edge. The footage always fills the full width; only the horizontal crop window moves. Omit or use 0.5 to keep the shot centred.",
+                  "Horizontal focal point of the crop, 0..1: 0 keeps the LEFT edge of the footage in view, 0.5 = centred (default), 1 keeps the RIGHT edge.",
+                ),
+              scale: z
+                .number()
+                .min(0)
+                .max(1)
+                .optional()
+                .describe(
+                  "1 (default when omitted) = full edge-to-edge crop, no letterboxing. 0 = full letterboxed contain, entire source frame visible. Only lower when content would otherwise be clipped at both edges or in a corner focusX alone can't fix.",
                 ),
             }),
           )
@@ -356,12 +395,6 @@ Narrative structure:
 - Middle segments escalate or deepen story.
 - Final segment provides payoff, lesson, or CTA.
 
-Horizontal framing (focusX):
-- For each segment, look only at that segment's attached frames.
-- The footage is landscape, cropped to a vertical 9:16 window that ALWAYS fills the full width of the short. Only the horizontal crop position can move; it never leaves a gap.
-- Set "focusX" in [0,1] so the important subject/action stays in view: 0 keeps the left edge, 1 keeps the right edge, 0.5 is centred.
-- Use 0.5 (or omit) when the subject is central, spans the frame, or you are unsure. Only move it when the subject is clearly toward one side.
-
 Visual-only windows available (no speech present, pre-vetted as visually worthwhile):
 ${JSON.stringify(visualCandidates)}
 
@@ -373,4 +406,58 @@ ${JSON.stringify(skeleton)}
 
 Selected Frames:
 ${JSON.stringify(selectedFrames)}
+`;
+
+// Output of the framing QA pass. `index` is the match key back onto the short's
+// own segments; `start`/`end` are echoed purely so the merge can sanity-check
+// that the model lined its answers up with the right segments.
+export const VisualFramingSchema = z.object({
+  segments: z.array(
+    z.object({
+      index: z
+        .number()
+        .int()
+        .min(0)
+        .describe("The 0-based index of the segment this applies to, matching the order the segments were given."),
+      start: z.number().describe("Echo this segment's exact start time back, unchanged, for validation only."),
+      end: z.number().describe("Echo this segment's exact end time back, unchanged, for validation only."),
+      focusX: z
+        .number()
+        .min(0)
+        .max(1)
+        .describe("Horizontal focal point 0..1: 0 keeps the LEFT edge in view, 1 the RIGHT edge, 0.5 centred."),
+      scale: z
+        .number()
+        .min(0)
+        .max(1)
+        .describe("1 = full edge-to-edge crop (the default). Lower only when clipping forces it."),
+    }),
+  ),
+});
+
+export const visualFramingPrompt = (
+  shortTitle: string,
+  shortDescription: string,
+  segments: Array<{ index: number; start: number; end: number; segment_purpose?: string }>,
+) => `
+You are doing a visual-framing quality pass on a finished vertical short. For each segment you are shown frames sampled across that segment's own full duration, not just its start or end.
+
+Return only JSON matching the schema. Return exactly one entry per segment listed below, using its exact "index" — do not add, drop, reorder, or merge segments. Echo back each segment's exact "start" and "end" unchanged.
+
+Render geometry (this is what focusX and scale actually control):
+- The source footage is landscape, placed into a vertical band that is narrower than it is tall.
+- At scale = 1 (the default) the footage is cropped edge-to-edge to fill that band. The full height is always visible — nothing is ever cropped at the top or bottom. Only the left and right edges are cropped, so you cannot see the full width of the frame at once.
+- "focusX" (0..1) slides which part of that cropped width stays in view: 0 keeps the LEFT edge of the shot, 1 keeps the RIGHT edge, 0.5 is centred. It only chooses which side to sacrifice — it can never reveal both edges at once.
+- Lowering "scale" below 1 reveals progressively more of the original width, at the cost of empty letterboxed space appearing above and below the footage. At scale = 0 the entire original frame is visible with maximum letterboxing.
+
+How to choose:
+- Default to scale = 1. Only lower it when BOTH are true: (a) important on-screen text, a graphic/watermark/readout, or the main subject is visibly cut off at an edge in the sampled frames, AND (b) no single focusX value avoids that clipping — e.g. the content spans both edges at once, or sits in a corner where fixing one side clips the other.
+- Lower scale only as much as needed. A small reduction (0.7-0.85) is usually enough; only approach 0 if content genuinely spans edge to edge.
+- Letterboxing is a visible downgrade from a full-bleed crop, so treat scale < 1 as a last resort, not a style choice.
+- If the subject is centred or already looks fine at scale = 1, set scale = 1 and focusX = 0.5.
+
+Short: "${shortTitle}" — ${shortDescription}
+
+Segments (each segment's frames follow immediately after this listing, in the same index order):
+${JSON.stringify(segments)}
 `;

@@ -26,7 +26,14 @@ type Short = {
   title: string;
   description: string;
   youtubeVideoUrl?: string;
-  segments: { start: number; end: number; transition?: string; segment_purpose?: string; focusX?: number }[];
+  segments: {
+    start: number;
+    end: number;
+    transition?: string;
+    segment_purpose?: string;
+    focusX?: number;
+    scale?: number;
+  }[];
 };
 
 type Project = {
@@ -167,6 +174,12 @@ const ShortsWorkflow: NextPage = () => {
   const [frameProgress, setFrameProgress] = useState("");
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [shortEdits, setShortEdits] = useState<Record<string, ShortUiState>>({});
+  const [videoTitleEdits, setVideoTitleEdits] = useState<Record<string, string>>({});
+  const [videoTitleState, setVideoTitleState] = useState<{
+    saving?: boolean;
+    error?: string;
+    success?: string;
+  }>({});
 
   const loadProjects = async () => {
     try {
@@ -202,6 +215,9 @@ const ShortsWorkflow: NextPage = () => {
     }
 
     setFrameProgress("Checking video compatibility...");
+    // Captured here (header read only, no full-file decode) and stored on the
+    // project so the shorts renderer knows how far it can crop the footage.
+    let sourceAspectRatio: number | undefined;
     {
       using probeInput = new BunnyInput({ formats: ALL_FORMATS, source: new BlobSource(file) });
       const probeVideoTrack = await probeInput.getPrimaryVideoTrack();
@@ -219,6 +235,11 @@ const ShortsWorkflow: NextPage = () => {
         );
         setLoading(false);
         return;
+      }
+
+      const { displayWidth, displayHeight } = probeVideoTrack;
+      if (displayWidth > 0 && displayHeight > 0) {
+        sourceAspectRatio = displayWidth / displayHeight;
       }
     }
     setFrameProgress("");
@@ -292,6 +313,7 @@ const ShortsWorkflow: NextPage = () => {
           projectId,
           totalChunks,
           projectName: resolvedProjectName,
+          sourceAspectRatio,
         }),
       });
 
@@ -560,6 +582,41 @@ const ShortsWorkflow: NextPage = () => {
   const shortDurationSeconds = (short: Short) =>
     short.segments.reduce((sum, seg) => sum + Math.max(0, seg.end - seg.start), 0);
 
+  // The video title is shown on the projects list and burned into the header
+  // of every short cut from this project (see `videoTitle` in
+  // shortCreator/Main.tsx) — distinct from each short's own title below.
+  const getVideoTitleField = (project: Project) => videoTitleEdits[project.id] ?? project.name;
+
+  const saveVideoTitle = async (project: Project) => {
+    const name = getVideoTitleField(project).trim();
+    if (!name) {
+      setVideoTitleState({ error: "Video title can't be empty." });
+      return;
+    }
+
+    setVideoTitleState({ saving: true, error: undefined, success: undefined });
+    try {
+      const response = await fetch("/api/updateProject", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: project.id, name }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { error?: string }).error || "Failed to save video title");
+      }
+
+      await loadProjects();
+      setVideoTitleState({ saving: false, success: "Saved." });
+    } catch (err) {
+      setVideoTitleState({
+        saving: false,
+        error: err instanceof Error ? err.message : "Failed to save video title",
+      });
+    }
+  };
+
   const saveShort = async (projectId: string, short: Short) => {
     setShortState(short.id, { saving: true, error: undefined, success: undefined });
     try {
@@ -627,7 +684,7 @@ const ShortsWorkflow: NextPage = () => {
             <CardContent className="space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Project Name
+                  Video Title
                 </label>
                 <Input
                   type="text"
@@ -752,12 +809,37 @@ const ShortsWorkflow: NextPage = () => {
         <section>
           {openProject ? (
             <>
-              <div className="mb-4 flex items-center gap-3">
+              <div className="mb-4 flex flex-wrap items-center gap-3">
                 <Button variant="secondary" size="sm" onClick={() => setOpenProjectId(null)}>
                   ← Back to Projects
                 </Button>
-                <h2 className="truncate text-2xl font-semibold tracking-tight">{openProject.name}</h2>
+                <Input
+                  value={getVideoTitleField(openProject)}
+                  onChange={(e) =>
+                    setVideoTitleEdits((prev) => ({ ...prev, [openProject.id]: e.target.value }))
+                  }
+                  placeholder="Video title"
+                  aria-label="Video title"
+                  className="max-w-md flex-1 text-xl font-semibold text-foreground"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void saveVideoTitle(openProject)}
+                  disabled={videoTitleState.saving}
+                >
+                  {videoTitleState.saving ? "Saving..." : "Save"}
+                </Button>
               </div>
+
+              {videoTitleState.error ? (
+                <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+                  {videoTitleState.error}
+                </div>
+              ) : null}
+              {videoTitleState.success ? (
+                <div className="mb-4 text-xs text-primary">{videoTitleState.success}</div>
+              ) : null}
 
               <div className="flex flex-col gap-6">
                 <Card className="border-border bg-card">
@@ -797,6 +879,7 @@ const ShortsWorkflow: NextPage = () => {
                         >
                           <option value="runShortsWorkflow">Run Shorts Workflow</option>
                           <option value="regenerateInstructions">Regenerate Instructions</option>
+                          <option value="refineVisualFraming">Refine Visual Framing</option>
                           <option value="generateYoutubeChapters">Generate YouTube Chapters</option>
                         </select>
                         <Button

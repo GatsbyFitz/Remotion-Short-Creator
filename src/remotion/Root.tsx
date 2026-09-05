@@ -19,7 +19,7 @@ import { ShearResilienceIncrease, calculateMetadata as calculateShearResilienceI
 import React, { useEffect, useState } from "react";
 
 
-type Segment = { start: number; end: number; focusX?: number };
+type Segment = { start: number; end: number; focusX?: number; scale?: number };
 type Short = {
   id: string;
   title: string;
@@ -30,6 +30,7 @@ type Project = {
   name: string;
   shorts: Short[];
   renderCount: number;
+  sourceAspectRatio?: number | null;
 };
 
 // Overridable so renders that don't run alongside the Next dev server (CLI, CI,
@@ -242,7 +243,10 @@ export const RemotionRoot: React.FC = () => {
           defaultProps={{
             segments: short.segments,
             project: project.id,
-            title: short.title,
+            // The on-screen header shows the video's overall title, not each
+            // short's own title (that's still used for the YouTube upload).
+            videoTitle: project.name,
+            sourceAspectRatio: project.sourceAspectRatio ?? undefined,
           }}
         />
       ))}

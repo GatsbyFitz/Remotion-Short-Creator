@@ -31,17 +31,34 @@ type Segment = {
   end: number;
   effect?: SegmentEffect;
   transition?: string;
-  // Horizontal focal point of the cover-crop, 0..1 (0 = keep left edge, 0.5 =
+  // Horizontal focal point of the crop, 0..1 (0 = keep left edge, 0.5 =
   // centred, 1 = keep right edge). Absent -> centred, identical to the default.
   focusX?: number;
+  // How much of the frame's width to crop away, 0..1. 1 (the default when
+  // absent) crops edge-to-edge to fill the band; 0 shows the whole frame width
+  // letterboxed. Unrelated to SegmentEffect's "scale" case below.
+  scale?: number;
 };
 
-type Props = { segments: Segment[]; project: string; title?: string };
+// videoTitle is the overall video's title (editable per-project), shown in the
+// header of every short cut from it — distinct from each short's own title.
+// sourceAspectRatio is per-project (one source video per project), captured at
+// upload time; it's what lets `scale` interpolate between contain and cover.
+type Props = {
+  segments: Segment[];
+  project: string;
+  videoTitle?: string;
+  sourceAspectRatio?: number;
+};
 
 // The footage fills the middle band of the frame; the header and captions live in
 // the equal empty bands above and below it (composition is 1080x1920).
 const FOOTAGE_HEIGHT_RATIO = 0.8;
 const EDGE_BAND_RATIO = (1 - FOOTAGE_HEIGHT_RATIO) / 2;
+
+// Assumed for projects uploaded before source dimensions were captured. Action-cam
+// footage is overwhelmingly 16:9, so this keeps old projects rendering as before.
+const DEFAULT_SOURCE_ASPECT_RATIO = 16 / 9;
 
 // Vertical fade applied to the footage so it dissolves into the background at the
 // top and bottom edges instead of ending on a hard line.
@@ -96,9 +113,24 @@ const getSegmentVolume = (frame: number, durationInFrames: number, fadeFrames = 
   return Math.min(fadeIn, fadeOut);
 };
 
-export const ShortCreator: React.FC<Props> = ({ segments, project, title }) => {
-  const { fps } = useVideoConfig();
+export const ShortCreator: React.FC<Props> = ({
+  segments,
+  project,
+  videoTitle,
+  sourceAspectRatio,
+}) => {
+  const { fps, width, height } = useVideoConfig();
   const endScreenDurationInFrames = Math.round(5 * fps);
+
+  // The footage box the video is fitted into and clipped by.
+  const boxWidthPx = width;
+  const boxHeightPx = height * FOOTAGE_HEIGHT_RATIO;
+
+  // The video is always laid out with objectFit "contain" (the whole frame,
+  // letterboxed) and then scaled up towards "cover" (edge-to-edge crop). Scaling
+  // the contain-fitted box by exactly this factor lands on cover on both axes.
+  const coverScale =
+    (sourceAspectRatio ?? DEFAULT_SOURCE_ASPECT_RATIO) / (boxWidthPx / boxHeightPx);
   const src = staticFile(`projects/${project}/video.mp4`);
   const [captions, setCaptions] = useState<Caption[] | null>(null);
   const { delayRender, continueRender, cancelRender } = useDelayRender();
@@ -130,6 +162,13 @@ export const ShortCreator: React.FC<Props> = ({ segments, project, title }) => {
         const effects = getEffects(seg.effect);
         const transition = getTransition(seg.transition);
 
+        // scale 1 (default) = full edge-to-edge crop, 0 = whole frame letterboxed.
+        const appliedScale = 1 + (seg.scale ?? 1) * (coverScale - 1);
+        // Only the width that overflows the box can be panned across, so at
+        // scale 0 there is nothing to pan and focusX is inert.
+        const maxOffsetPx = (boxWidthPx * (appliedScale - 1)) / 2;
+        const translateXPx = -((seg.focusX ?? 0.5) - 0.5) * 2 * maxOffsetPx;
+
         const sequence = (
           <TransitionSeries.Sequence key={i} durationInFrames={durFrames}>
             <AbsoluteFill style={{ backgroundColor: "#020617" }}>
@@ -155,15 +194,14 @@ export const ShortCreator: React.FC<Props> = ({ segments, project, title }) => {
                   style={{
                     width: "100%",
                     height: "100%",
-                    // Landscape footage is cover-cropped to the vertical band; the
-                    // fit is height-bound so there is horizontal slack to pan. This
-                    // slides which part of the width is kept; it always fills the
-                    // full width. Absent focusX -> "50% 50%", the CSS default.
-                    objectPosition: `${
-                      Math.round((seg.focusX ?? 0.5) * 1000) / 10
-                    }% 50%`,
+                    // Laid out as "contain" (whole frame, letterboxed) and scaled
+                    // up towards "cover" (edge-to-edge crop) by `scale`, then
+                    // panned by `focusX`. translateX is listed first so it stays a
+                    // plain on-screen pixel offset rather than being multiplied by
+                    // the scale that follows it.
+                    transform: `translateX(${translateXPx}px) scale(${appliedScale})`,
                   }}
-                  objectFit="cover"
+                  objectFit="contain"
                 />
               </div>
               <CaptionTrack
@@ -171,7 +209,7 @@ export const ShortCreator: React.FC<Props> = ({ segments, project, title }) => {
                 segmentStartMs={seg.start * 1000}
                 segmentEndMs={seg.end * 1000}
               />
-              <ShortHeader title={title} />
+              <ShortHeader title={videoTitle} />
             </AbsoluteFill>
           </TransitionSeries.Sequence>
         );
@@ -210,6 +248,10 @@ export const calculateMetadata: CalculateMetadataFunction<Props> = async ({
         s.focusX == null || !Number.isFinite(Number(s.focusX))
           ? undefined
           : Math.min(1, Math.max(0, Number(s.focusX))),
+      scale:
+        s.scale == null || !Number.isFinite(Number(s.scale))
+          ? undefined
+          : Math.min(1, Math.max(0, Number(s.scale))),
     }))
     .filter(
       (s) =>

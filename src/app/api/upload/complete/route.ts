@@ -7,6 +7,7 @@ type CompletePayload = {
   projectId: string;
   totalChunks: number;
   projectName?: string;
+  sourceAspectRatio?: number;
 };
 
 export const runtime = "nodejs";
@@ -17,6 +18,14 @@ export async function POST(request: NextRequest) {
   const projectId = payload.projectId;
   const totalChunks = payload.totalChunks;
   const projectName = typeof payload.projectName === "string" ? payload.projectName.trim() : "";
+  // Captured client-side at upload; the shorts renderer needs it to know how far
+  // the footage can be cropped before it runs out of frame.
+  const sourceAspectRatio =
+    typeof payload.sourceAspectRatio === "number" &&
+    Number.isFinite(payload.sourceAspectRatio) &&
+    payload.sourceAspectRatio > 0
+      ? payload.sourceAspectRatio
+      : undefined;
 
   if (
     !uploadId ||
@@ -88,6 +97,7 @@ export async function POST(request: NextRequest) {
         uploadedAt,
         fileSizeBytes: videoFileSizeBytes,
         sourceVideoPath: `/projects/${projectId}/video.mp4`,
+        ...(sourceAspectRatio === undefined ? {} : { sourceAspectRatio }),
       },
       null,
       2,

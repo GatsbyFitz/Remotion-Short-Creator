@@ -2,7 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 
-type Segment = { start: number; end: number; transition?: string; segment_purpose?: string; focusX?: number };
+type Segment = {
+  start: number;
+  end: number;
+  transition?: string;
+  segment_purpose?: string;
+  focusX?: number;
+  scale?: number;
+};
 type Short = { id: string; title: string; description: string; youtubeVideoUrl?: string; segments: Segment[] };
 type Project = {
   id: string;
@@ -13,6 +20,7 @@ type Project = {
   fileSizeBytes: number | null;
   audioFileSizeBytes: number | null; // Added to structural type definition
   frameCount: number | null; // Added to structural type definition
+  sourceAspectRatio: number | null;
 };
 
 // Remotion renders (Studio's "Render" button, `remotion render`) load the bundle
@@ -52,6 +60,7 @@ export async function GET() {
           fileSizeBytes?: number;
           audioFileSizeBytes?: number; // Read target from json schema map
           frameCount?: number; // Read target from json schema map
+          sourceAspectRatio?: number;
         }
         : null;
         
@@ -60,9 +69,16 @@ export async function GET() {
       const fileSizeBytes = typeof metadata?.fileSizeBytes === "number" ? metadata.fileSizeBytes : null;
       
       // Handle missing audio sizes gracefully for legacy projects
-      const audioFileSizeBytes = typeof metadata?.audioFileSizeBytes === "number" 
-        ? metadata.audioFileSizeBytes 
+      const audioFileSizeBytes = typeof metadata?.audioFileSizeBytes === "number"
+        ? metadata.audioFileSizeBytes
         : null;
+
+      // Absent for projects uploaded before it was captured; the renderer falls
+      // back to assuming 16:9 in that case.
+      const sourceAspectRatio =
+        typeof metadata?.sourceAspectRatio === "number" && metadata.sourceAspectRatio > 0
+          ? metadata.sourceAspectRatio
+          : null;
 
       if (!fs.existsSync(instructionsPath)) {
         return {
@@ -74,6 +90,7 @@ export async function GET() {
           fileSizeBytes,
           audioFileSizeBytes,
           frameCount: metadata?.frameCount ?? null,
+          sourceAspectRatio,
         };
       }
 
@@ -90,6 +107,7 @@ export async function GET() {
         fileSizeBytes,
         audioFileSizeBytes,
         frameCount: metadata?.frameCount ?? null,
+        sourceAspectRatio,
       };
     });
 
