@@ -11,6 +11,23 @@ Whenever asked to build a new Remotion composition/graphic for this project (lis
 
 ## Brand system
 
+**Fonts are loaded from vendored files, not Typekit.** The Typekit stylesheet in
+`src/app/layout.tsx` belongs to the Next app and is never pulled into the Remotion
+bundle, so a family that isn't loaded explicitly silently falls back to
+`sans-serif` — and a family that *appears* to work may only be resolving because
+it happens to be installed on that machine, which breaks on CI or any other
+computer. Brand fonts are therefore loaded in `src/remotion/fonts.ts` (imported by
+`src/remotion/index.ts`) via `@remotion/fonts` `loadFont()` from files in
+`public/fonts/`. `.otf`, `.ttf`, `.woff` and `.woff2` all work.
+
+To add a font: drop the file in `public/fonts/`, add a `loadFont()` entry to the
+`Promise.all` in `src/remotion/fonts.ts` with the family name used in
+`BRAND_FONTS`, and verify by rendering it under a deliberately fake alias — if the
+alias renders correctly, the file is genuinely being used rather than a system
+install. Currently only `baga` is vendored; `le-havre-rounded` (`BRAND_FONTS.secondary`)
+and `Pollen` (`BRAND_FONTS.tertiary`) have no file yet and will render as
+`sans-serif` until one is added.
+
 Always import from `src/remotion/theme.ts` rather than hardcoding hex values or font names:
 
 - `BRAND_COLORS`: black `#000000`, pink `#FF37A1`, yellow `#E1FF62`, textPrimary black, textSecondary `rgba(0,0,0,0.7)`, textLight white, trackLine `rgba(255,55,161,0.15)`
@@ -36,9 +53,21 @@ Existing compositions render as **transparent overlays** meant to sit on top of 
   defaultPixelFormat: "yuva444p10le" as const,
   defaultProResProfile: "4444" as const,
   ```
-  This is what preserves the alpha channel for overlay use — don't drop it.
+  This is what preserves the alpha channel for overlay use — don't drop it. Both
+  halves are load-bearing: `png` because JPEG has no alpha channel and would
+  flatten transparency before encoding, and the `yuva…`/ProRes `4444` pair
+  because that's what carries alpha through the video codec. Drop either and you
+  get an opaque render regardless of the other.
+- **Render scale is 2x, and it is NOT a `calculateMetadata` field.** `CalcMetadataReturnType`
+  has no `scale` property — scale only exists as a render-level setting. It is set
+  once, project-wide, in `remotion.config.ts` via `Config.setScale(2)`, so a
+  1920x1080 composition renders at 3840x2160. Don't try to add `scale` to a
+  composition's metadata (it won't type-check and wouldn't do anything); to
+  override it for a one-off render, pass `--scale=<n>` on the CLI. `remotion.config.ts`
+  also pins `Config.setVideoImageFormat("png")` and `Config.setStillImageFormat("png")`
+  for the alpha reason above — do not set either back to `jpeg`.
 - Choose text/shape colors assuming they'll sit over arbitrary video, not a fixed background: black (as in `PushUpTypes`, `MaxThreshold80`) reads on light footage, light/yellow (as in `TwoYearTimeline`) reads on dark footage. Ask which is likely if it's not obvious from the brief.
-- **Known gotcha:** `styles/global.css` (shared with the Next.js app via `src/app/layout.tsx`) applies a solid `body { @apply bg-background }`. It's also imported by `src/remotion/index.ts`, so without a fix it bleeds an opaque background through every composition's transparent `AbsoluteFill`, both in Studio preview and in actual rendered frames. This is neutralized once, project-wide, via `src/remotion/transparent-canvas.css` (imported after `global.css` in `src/remotion/index.ts`), which forces `html, body { background: transparent !important; }` scoped to the Remotion bundle only — it does not touch the Next.js app's styling. Don't edit `global.css` itself to fix transparency issues; that file is shared and its body background is intentional for the Next app.
+- **Known gotcha:** `styles/global.css` (shared with the Next.js app via `src/app/layout.tsx`) applies a solid `body { @apply bg-background }` with `--background: #000000`, and it is imported by `src/remotion/index.ts` — so the Remotion bundle does pull in an opaque body background. In practice rendered frames still come out with real alpha (verified by rendering overlay stills and inspecting them), because the composition's own `AbsoluteFill` is what gets captured, not the page body. If you ever *do* see an opaque background bleed through, fix it in a Remotion-scoped stylesheet imported after `global.css` in `src/remotion/index.ts` (forcing `html, body { background: transparent !important; }`) — don't edit `global.css` itself, since it's shared and its body background is intentional for the Next app.
 
 ## Animation conventions
 
@@ -72,5 +101,8 @@ Render one or two still frames to confirm layout and timing before calling it do
 ```bash
 npx remotion still <composition-id> --scale=0.5 --frame=<n> out.png
 ```
+
+(The project default is `scale: 2`, so pass an explicit small `--scale` like this
+for quick checks — otherwise every sanity-check still renders at 3840x2160.)
 
 Check a frame partway through the animation and a frame at the final held state (e.g. the last item, the completed gauge).

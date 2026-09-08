@@ -11,6 +11,12 @@ import { MaxThreshold80, calculateMetadata as calculateMaxThreshold80Metadata } 
 import { PushUp100BlocksBuild, calculateMetadata as calculatePushUp100BlocksBuildMetadata } from "./PushUp100BlocksBuild/Main";
 import { PriorityList, calculateMetadata as calculatePriorityListMetadata } from "./PriorityList/Main";
 import { BlisterFormation, calculateMetadata as calculateBlisterFormationMetadata } from "./BlisterFormation/Main";
+import { PrisonBars, calculateMetadata as calculatePrisonBarsMetadata } from "./PrisonBars/Main";
+import { CrumblingWall, calculateMetadata as calculateCrumblingWallMetadata } from "./CrumblingWall/Main";
+import { PassionIdentityCage, calculateMetadata as calculatePassionIdentityCageMetadata } from "./PassionIdentityCage/Main";
+import { RacingInjuryCycle, calculateMetadata as calculateRacingInjuryCycleMetadata } from "./RacingInjuryCycle/Main";
+import { MomentumMeaning, calculateMetadata as calculateMomentumMeaningMetadata } from "./MomentumMeaning/Main";
+import { LoadBearingBody, calculateMetadata as calculateLoadBearingBodyMetadata } from "./LoadBearingBody/Main";
 import { TheoryToPractice, calculateMetadata as calculateTheoryToPracticeMetadata } from "./TheoryToPractice/Main";
 import { TableOfContents, calculateMetadata as calculateTableOfContentsMetadata } from "./TableOfContents/Main";
 import { ShearCyclesReduction, calculateMetadata as calculateShearCyclesReductionMetadata } from "./ShearCyclesReduction/Main";
@@ -92,6 +98,60 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         durationInFrames={150}
         calculateMetadata={calculatePushUpBlocksRevealMetadata}
+      />
+      <Composition
+        id="LoadBearingBody"
+        component={LoadBearingBody}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={205}
+        calculateMetadata={calculateLoadBearingBodyMetadata}
+      />
+      <Composition
+        id="MomentumMeaning"
+        component={MomentumMeaning}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateMomentumMeaningMetadata}
+      />
+      <Composition
+        id="RacingInjuryCycle"
+        component={RacingInjuryCycle}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={170}
+        calculateMetadata={calculateRacingInjuryCycleMetadata}
+      />
+      <Composition
+        id="PassionIdentityCage"
+        component={PassionIdentityCage}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculatePassionIdentityCageMetadata}
+      />
+      <Composition
+        id="CrumblingWall"
+        component={CrumblingWall}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={120}
+        calculateMetadata={calculateCrumblingWallMetadata}
+      />
+      <Composition
+        id="PrisonBars"
+        component={PrisonBars}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculatePrisonBarsMetadata}
       />
       <Composition
         id="ThreeBlocksReveal"
