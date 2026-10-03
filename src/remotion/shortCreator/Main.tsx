@@ -23,6 +23,7 @@ import { grayscale } from "@remotion/effects/grayscale";
 import { invert } from "@remotion/effects/invert";
 import { scale } from "@remotion/effects/scale";
 import { BRAND_COLORS, BRAND_FONTS } from "../theme";
+import { captionPopStyle } from "../captionPop";
 
 type SegmentEffect = "grayscale" | "invert" | "scale";
 
@@ -351,6 +352,8 @@ const ShortHeader: React.FC<{ title?: string }> = ({ title }) => {
   );
 };
 
+const CAPTION_FONT_SIZE = 70;
+
 const CaptionTrack: React.FC<{
   captions: Caption[];
   segmentStartMs: number;
@@ -386,6 +389,13 @@ const CaptionTrack: React.FC<{
     return absoluteTimeMs >= token.fromMs && absoluteTimeMs < token.toMs;
   });
 
+  // Frames since this page appeared. A page carried over a cut from the previous
+  // segment counts from the cut, so it pops in fresh on the new shot.
+  const pageFrame = Math.max(
+    0,
+    Math.round(((absoluteTimeMs - Math.max(activePage.startMs, segmentStartMs)) / 1000) * fps),
+  );
+
   return (
     <div
       style={{
@@ -404,11 +414,12 @@ const CaptionTrack: React.FC<{
     >
       <div
         style={{
-          fontSize: 70,
+          fontSize: CAPTION_FONT_SIZE,
           fontWeight: "bold",
           textAlign: "center",
           whiteSpace: "pre",
           lineHeight: 1,
+          ...captionPopStyle(pageFrame, fps, CAPTION_FONT_SIZE),
         }}
       >
         {activePage.tokens.map((token) => {

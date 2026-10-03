@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import ShortsWorkflow from "./workflow/page";
 import VideoGenerator from "./video-generator/page";
+import ReelsWorkflow from "./reels/page";
+import FootageLibrary from "./library/page";
 
-type TileId = "workflow" | "videoGenerator";
+type TileId = "workflow" | "reels" | "library" | "videoGenerator";
 
 type Tile = {
   id: TileId;
@@ -19,6 +21,16 @@ const TILES: Tile[] = [
     id: "workflow",
     label: "Shorts Workflow",
     description: "Upload a video, create a project, and run the workflow.",
+  },
+  {
+    id: "reels",
+    label: "Reels Workflow",
+    description: "Turn a Photos album into reels built on what's trending.",
+  },
+  {
+    id: "library",
+    label: "Footage Library",
+    description: "Search every analysed photo, clip and video frame.",
   },
   {
     id: "videoGenerator",
@@ -155,6 +167,8 @@ const Home = () => {
             </button>
           </div>
           {selected === "workflow" ? <ShortsWorkflow /> : null}
+          {selected === "reels" ? <ReelsWorkflow /> : null}
+          {selected === "library" ? <FootageLibrary /> : null}
           {selected === "videoGenerator" ? <VideoGenerator /> : null}
         </div>
       ) : null}

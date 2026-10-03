@@ -7,26 +7,64 @@ metadata:
 
 ## When to use
 
-Whenever asked to build a new Remotion composition/graphic for this project (list reveals, gauges, timelines, counters, block builds, etc.) that should look and animate consistently with the existing ones. Pair with the `remotion-best-practices` skill for general Remotion API knowledge (fonts, captions, ffmpeg, sequencing) — this skill covers this project's specific design system and conventions, not generic Remotion usage.
+Whenever asked to build a new Remotion composition/graphic for this project (list reveals, gauges, timelines, counters, block builds, etc.) that should look and animate consistently with the existing ones. For every composition, also use the `overlay-coordinate-grid` skill: positions are measured off a labelled coordinate grid — on the footage frame when graphics must line up with something in shot, and on your own renders always — rather than estimated. Pair with the `remotion-best-practices` skill for general Remotion API knowledge (fonts, captions, ffmpeg, sequencing) — this skill covers this project's specific design system and conventions, not generic Remotion usage.
+
+## Before you build: propose first
+
+**Always offer a few options before writing any composition code**, even when the
+brief looks unambiguous. A one-line brief admits many readings, and the gap
+between them is a whole build, not a tweak — so the cheapest moment to be wrong
+is before any code exists.
+
+- Offer **three** concepts that are genuinely different *structures*, not three
+  treatments of one idea. For each, say what it argues and what its single
+  strongest moment is.
+- **Recommend one**, in a sentence, and say what the runners-up do better. A flat
+  menu hands the decision back without helping make it.
+- **Flag anything that would block the build**: a payoff word you'd otherwise be
+  guessing (the answer in a question-and-answer piece, the line a lesson resolves
+  to), an unusually long duration, or a structure that repeats one already in the
+  set.
+- **Wait for a pick.** "Create a composition for X" is still a request to propose.
+
+Skip the proposal only when the user has already chosen ("build #2", "do the
+gate"), or is asking to change a composition that already exists.
 
 ## Brand system
 
-**Fonts are loaded from vendored files, not Typekit.** The Typekit stylesheet in
-`src/app/layout.tsx` belongs to the Next app and is never pulled into the Remotion
-bundle, so a family that isn't loaded explicitly silently falls back to
-`sans-serif` — and a family that *appears* to work may only be resolving because
-it happens to be installed on that machine, which breaks on CI or any other
-computer. Brand fonts are therefore loaded in `src/remotion/fonts.ts` (imported by
-`src/remotion/index.ts`) via `@remotion/fonts` `loadFont()` from files in
-`public/fonts/`. `.otf`, `.ttf`, `.woff` and `.woff2` all work.
+**Fonts are loaded from vendored files via plain CSS, not Typekit and not
+`@remotion/fonts`.** The Typekit stylesheet in `src/app/layout.tsx` belongs to the
+Next app and is never pulled into the Remotion bundle, so a family that isn't
+loaded explicitly silently falls back to `sans-serif` — and one that *appears* to
+work may only be resolving because it happens to be installed on that machine,
+which breaks on CI or any other computer.
 
-To add a font: drop the file in `public/fonts/`, add a `loadFont()` entry to the
-`Promise.all` in `src/remotion/fonts.ts` with the family name used in
-`BRAND_FONTS`, and verify by rendering it under a deliberately fake alias — if the
-alias renders correctly, the file is genuinely being used rather than a system
-install. Currently only `baga` is vendored; `le-havre-rounded` (`BRAND_FONTS.secondary`)
-and `Pollen` (`BRAND_FONTS.tertiary`) have no file yet and will render as
-`sans-serif` until one is added.
+Brand fonts live in `public/fonts/` and are declared as `@font-face` rules in
+`src/remotion/fonts.css`, imported by `src/remotion/index.ts`.
+
+**Do not reintroduce `delayRender()` for font loading.** An earlier version of
+this used `@remotion/fonts` `loadFont()` with a module-scope
+`delayRender()`/`continueRender()` pair. It repeatedly failed in Studio with
+`A delayRender() "Loading brand fonts" was called but not cleared after 28000ms`,
+taking every render down with it — including compositions that don't draw text at
+all, because the handle is global and created before any composition mounts.
+Adding a timeout race and pinning the package version did not fix it. An
+`@font-face` has no handle to leak: the browser owns the load, and
+`font-display: block` holds text back until it resolves.
+
+To add a font: drop the file in `public/fonts/`, add an `@font-face` block to
+`src/remotion/fonts.css` with the family name used in `BRAND_FONTS`, and verify it
+by declaring the same file a second time under a deliberately fake family name and
+rendering that alias against a nonexistent font. If the alias renders correctly the
+file is genuinely being used rather than a system install. Remove the probe
+afterwards. Currently only `baga` is vendored; `le-havre-rounded`
+(`BRAND_FONTS.secondary`) and `Pollen` (`BRAND_FONTS.tertiary`) have no file yet
+and render as `sans-serif`.
+
+**Keep every `@remotion/*` package pinned to the same version as `remotion`.** On
+a mismatch a package resolves its own copy of `remotion`, so anything relying on
+shared module state breaks in ways the error message won't explain. Check with
+`npx remotion versions`.
 
 Always import from `src/remotion/theme.ts` rather than hardcoding hex values or font names:
 
@@ -92,7 +130,7 @@ When the brief is a list that sequences to a final/bottom item, ask (or infer fr
 In `src/remotion/Root.tsx`:
 
 1. Import the component and its `calculateMetadata`, aliasing the latter (e.g. `calculateMetadata as calculate<Name>Metadata`) since every composition file exports a function with that same name
-2. Add a `<Composition>` inside the `<Folder name="Visuals">` block with `id`, `component`, `width`, `height`, `fps`, a `durationInFrames` that matches what `calculateMetadata` will compute (this is only the Studio's initial guess before `calculateMetadata` resolves — keep it in sync so the two don't disagree), and `calculateMetadata`
+2. Add a `<Composition>` inside the right `<Folder>` — `TYUniverse` for graphics belonging to that video's argument, `Visuals` for general-purpose or reusable ones — with `id`, `component`, `width`, `height`, `fps`, a `durationInFrames` that matches what `calculateMetadata` will compute (this is only the Studio's initial guess before `calculateMetadata` resolves — keep it in sync so the two don't disagree), and `calculateMetadata`
 
 ## Sanity check
 
@@ -105,4 +143,4 @@ npx remotion still <composition-id> --scale=0.5 --frame=<n> out.png
 (The project default is `scale: 2`, so pass an explicit small `--scale` like this
 for quick checks — otherwise every sanity-check still renders at 3840x2160.)
 
-Check a frame partway through the animation and a frame at the final held state (e.g. the last item, the completed gauge).
+Check a frame partway through the animation and a frame at the final held state (e.g. the last item, the completed gauge). Grid those stills with the `overlay-coordinate-grid` scripts rather than judging positions by eye.

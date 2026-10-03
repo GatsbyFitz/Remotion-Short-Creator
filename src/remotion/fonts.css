@@ -1,0 +1,20 @@
+/*
+ * Brand fonts for the Remotion bundle.
+ *
+ * Loaded as plain CSS rather than via @remotion/fonts + delayRender(): a
+ * delayRender() at module scope repeatedly failed in Studio with "was called
+ * but not cleared after 28000ms", taking every render down with it. An
+ * @font-face has no handle to leak — the browser owns the load, and
+ * font-display: block holds text back until it resolves.
+ *
+ * The Typekit stylesheet in src/app/layout.tsx belongs to the Next app and is
+ * never pulled into this bundle, so anything not declared here falls back to
+ * sans-serif.
+ */
+@font-face {
+  font-family: "baga";
+  src: url("../../public/fonts/Baga-Semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}

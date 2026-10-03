@@ -23,7 +23,7 @@
     "@remotion/captions": "^4.0.463",
     "@remotion/cli": "^4.0.463",
     "@remotion/effects": "^4.0.470",
-    "@remotion/fonts": "^4.0.522",
+    "@remotion/fonts": "^4.0.463",
     "@remotion/google-fonts": "^4.0.463",
     "@remotion/install-whisper-cpp": "^4.0.463",
     "@remotion/media": "^4.0.463",

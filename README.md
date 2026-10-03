@@ -91,7 +91,33 @@ Project artifacts are written to:
 - `public/projects/{projectId}/transcript.json`
 - `public/projects/{projectId}/instructions.json`
 - `public/projects/{projectId}/youtube_chapters.txt`
+- `public/projects/{projectId}/clips.json`
 - `public/projects/{projectId}/metadata.json`
+
+## Social Clips
+
+The **Generate Social Clips** action picks 5–8 teaser clips (5–15s each) from the full video, geared to making viewers want to watch the whole thing. It reuses the project's transcript if one exists, scores sampled frames for visual interest, proposes candidates from the transcript plus those scores, then reviews each candidate against its own frames and keeps the best. Results land in `clips.json`, best first, each with a hook, what it leaves open, and a caption to post.
+
+Each clip is registered in Remotion Studio under the **Clips** folder (`SocialClip-*`), at the source video's aspect ratio with burned-in subtitles. Render from there; the project's 2x scale means a landscape clip renders at 3840x2160 unless you pass `--scale=1`.
+
+## Reels from a Photos Album
+
+The **Reels Workflow** tile turns an Apple Photos album (or any folder of photos and clips) into 3–5 vertical reels built on formats trending right now. macOS only: it drives Photos through AppleScript and converts media with the built-in `sips` and `avconvert`.
+
+1. **Import** — exports up to 120 items (favourites first) from the album, converting HEIC to JPEG and iPhone HEVC/HDR clips to SDR H.264. The first run asks for permission to control Photos.
+2. **Analyse** — describes and scores every photo and clip, notes where the subject sits for the vertical crop, and finds each clip's best moment.
+3. **Research** — live web search (OpenAI, needs `OPENAI_API_KEY`) for formats trending on Reels/TikTok that suit the album. If it fails, the reels fall back to evergreen formats and the UI says so.
+4. **Plan** — lays out each reel as shots cut on the beat of the sound it was built for, with on-screen text and a post caption.
+
+Reels render silent: trending sounds are licensed, so add the named sound in Instagram's editor. **Regenerate with Fresh Trends** re-runs the research and plan without re-importing. Reels appear in Remotion Studio under the **Reels** folder (`Reel-*`).
+
+Reel projects are written to `public/reels/{projectId}/` (`media/`, `thumbs/`, `media-manifest.json`, `media-analysis.json`, `trends.json`, `reels.json`, `status.json`).
+
+## Footage Library
+
+Every photo, clip and video frame the workflows analyse is stored in one SQLite database, `data/analysis.sqlite` (Node's built-in `node:sqlite`, no setup). Media is identified by content — a photo by a hash of its file, a video frame by its source video's hash plus the timestamp — so the same media is never analysed twice, in any project. The reels analysis and the clips workflow's visual scan both read from it first and only send new media to the model.
+
+The **Footage Library** tile searches all of it by meaning (OpenAI `text-embedding-3-small` embeddings of each description), and can index every frame of a video project rather than the 150 the clips scan samples. Set `ANALYSIS_DB_PATH` to keep the database elsewhere.
 
 ## Useful Scripts
 

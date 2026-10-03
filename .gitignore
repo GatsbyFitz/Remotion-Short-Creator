@@ -62,6 +62,10 @@ out
 
 # generated project outputs only (scoped)
 public/projects/**
+public/reels/**
+
+# analysis library (SQLite)
+/data/
 public/miscellaneous/**
 
 # Agents

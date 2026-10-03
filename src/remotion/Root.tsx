@@ -17,11 +17,29 @@ import { PassionIdentityCage, calculateMetadata as calculatePassionIdentityCageM
 import { RacingInjuryCycle, calculateMetadata as calculateRacingInjuryCycleMetadata } from "./RacingInjuryCycle/Main";
 import { MomentumMeaning, calculateMetadata as calculateMomentumMeaningMetadata } from "./MomentumMeaning/Main";
 import { LoadBearingBody, calculateMetadata as calculateLoadBearingBodyMetadata } from "./LoadBearingBody/Main";
+import { HolisticWheel, calculateMetadata as calculateHolisticWheelMetadata } from "./HolisticWheel/Main";
+import { ListenToYourBody, calculateMetadata as calculateListenToYourBodyMetadata } from "./ListenToYourBody/Main";
+import { UnravellingBody, calculateMetadata as calculateUnravellingBodyMetadata } from "./UnravellingBody/Main";
+import { IdentitySilo, calculateMetadata as calculateIdentitySiloMetadata } from "./IdentitySilo/Main";
+import { UnattachedGate, calculateMetadata as calculateUnattachedGateMetadata } from "./UnattachedGate/Main";
+import { CrossBracedBody, calculateMetadata as calculateCrossBracedBodyMetadata } from "./CrossBracedBody/Main";
+import { ListenAndVary, calculateMetadata as calculateListenAndVaryMetadata } from "./ListenAndVary/Main";
+import { FinishLine, calculateMetadata as calculateFinishLineMetadata } from "./FinishLine/Main";
+import { InvitationToSlow, calculateMetadata as calculateInvitationToSlowMetadata } from "./InvitationToSlow/Main";
+import { RoomToHeal, calculateMetadata as calculateRoomToHealMetadata } from "./RoomToHeal/Main";
+import { RootsInWinter, calculateMetadata as calculateRootsInWinterMetadata } from "./RootsInWinter/Main";
+import { IdentityShell, calculateMetadata as calculateIdentityShellMetadata } from "./IdentityShell/Main";
+import { GraduationLesson, calculateMetadata as calculateGraduationLessonMetadata } from "./GraduationLesson/Main";
+import { ExpectedVsReality, calculateMetadata as calculateExpectedVsRealityMetadata } from "./ExpectedVsReality/Main";
+import { ThroughTheTrees, calculateMetadata as calculateThroughTheTreesMetadata } from "./ThroughTheTrees/Main";
 import { TheoryToPractice, calculateMetadata as calculateTheoryToPracticeMetadata } from "./TheoryToPractice/Main";
 import { TableOfContents, calculateMetadata as calculateTableOfContentsMetadata } from "./TableOfContents/Main";
 import { ShearCyclesReduction, calculateMetadata as calculateShearCyclesReductionMetadata } from "./ShearCyclesReduction/Main";
 import { ShearMagnitudeReduction, calculateMetadata as calculateShearMagnitudeReductionMetadata } from "./ShearMagnitudeReduction/Main";
 import { ShearResilienceIncrease, calculateMetadata as calculateShearResilienceIncreaseMetadata } from "./ShearResilienceIncrease/Main";
+import { SocialClip, calculateMetadata as calculateSocialClipMetadata } from "./SocialClip/Main";
+import { Reel, calculateMetadata as calculateReelMetadata } from "./Reel/Main";
+import type { ReelShot } from "./Reel/Shot";
 import React, { useEffect, useState } from "react";
 
 
@@ -31,12 +49,18 @@ type Short = {
   title: string;
   segments: Segment[];
 };
+type Clip = { id: string; start: number; end: number };
 type Project = {
   id: string;
   name: string;
   shorts: Short[];
+  clips?: Clip[];
   renderCount: number;
   sourceAspectRatio?: number | null;
+};
+type ReelProject = {
+  id: string;
+  reels: Array<{ id: string; bpm: number; shots: ReelShot[] }>;
 };
 
 // Overridable so renders that don't run alongside the Next dev server (CLI, CI,
@@ -44,19 +68,25 @@ type Project = {
 // prefixed with `REMOTION_` to the bundle.
 const FIND_PROJECTS_URL =
   process.env.REMOTION_FIND_PROJECTS_URL ?? "http://localhost:3000/api/findProjects";
+const FIND_REELS_URL = process.env.REMOTION_FIND_REELS_URL ?? "http://localhost:3000/api/findReels";
 
-async function fetchProjects(): Promise<Project[]> {
-  const response = await fetch(FIND_PROJECTS_URL);
+// If the Next server is down or still compiling, this fetch hangs rather than
+// failing — neither .then nor .catch runs, the delayRender below is never
+// cleared, and every render dies at Remotion's 28s timeout. So it gets a hard
+// deadline of its own.
+const FIND_PROJECTS_TIMEOUT_MS = 8000;
+
+async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
+  const response = await fetch(url, { signal });
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch projects from ${FIND_PROJECTS_URL}: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
   }
-  return (await response.json()) as Project[];
+  return (await response.json()) as T;
 }
 
 export const RemotionRoot: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [reelProjects, setReelProjects] = useState<ReelProject[]>([]);
   // Block composition enumeration until the project list has loaded. Without this,
   // `remotion render` / Studio's render entry read the composition list before the
   // fetch resolves and the `ShortCreator-*` entries simply don't exist yet, failing
@@ -66,38 +96,162 @@ export const RemotionRoot: React.FC = () => {
   );
 
   useEffect(() => {
-    fetchProjects()
-      .then((data) => {
-        setProjects(data);
-        continueRender(handle);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FIND_PROJECTS_TIMEOUT_MS);
+
+    // Settled independently, so one endpoint failing still registers the
+    // other's compositions.
+    Promise.allSettled([
+      fetchJson<Project[]>(FIND_PROJECTS_URL, controller.signal),
+      fetchJson<ReelProject[]>(FIND_REELS_URL, controller.signal),
+    ])
+      .then(([projectsResult, reelsResult]) => {
+        // Proceed without whichever compositions failed rather than blocking, and say why.
+        if (projectsResult.status === "fulfilled") {
+          setProjects(projectsResult.value);
+        } else {
+          console.error("Error fetching projects for Remotion Root:", projectsResult.reason);
+        }
+        if (reelsResult.status === "fulfilled") {
+          setReelProjects(reelsResult.value);
+        } else {
+          console.error("Error fetching reels for Remotion Root:", reelsResult.reason);
+        }
       })
-      .catch((error: unknown) => {
-        // Don't hang the render; proceed with no Shorts compositions and surface why.
-        console.error("Error fetching projects for Remotion Root:", error);
+      .finally(() => {
+        // Resolved, rejected or aborted — the render always continues.
+        clearTimeout(timeout);
         continueRender(handle);
       });
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [handle]);
 
   return (
     <>
-    <Folder name="Visuals">
+    <Folder name="TYUniverse">
       <Composition
-        id="BlocksTimesThree"
-        component={BlocksTimesThree}
+        id="ThroughTheTrees"
+        component={ThroughTheTrees}
         width={1920}
         height={1080}
         fps={30}
-        durationInFrames={150}
-        calculateMetadata={calculateBlocksTimesThreeMetadata}
+        durationInFrames={300}
+        defaultProps={{ growIn: true }}
+        calculateMetadata={calculateThroughTheTreesMetadata}
+      />
+      {/* Already grown. Place after ThroughTheTrees, and repeat, for longer shots. */}
+      <Composition
+        id="ThroughTheTreesLoop"
+        component={ThroughTheTrees}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={300}
+        defaultProps={{ growIn: false }}
+        calculateMetadata={calculateThroughTheTreesMetadata}
       />
       <Composition
-        id="PushUpBlocksReveal"
-        component={PushUpBlocksReveal}
+        id="ExpectedVsReality"
+        component={ExpectedVsReality}
         width={1920}
         height={1080}
         fps={30}
-        durationInFrames={150}
-        calculateMetadata={calculatePushUpBlocksRevealMetadata}
+        durationInFrames={230}
+        calculateMetadata={calculateExpectedVsRealityMetadata}
+      />
+      <Composition
+        id="GraduationLesson"
+        component={GraduationLesson}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={180}
+        calculateMetadata={calculateGraduationLessonMetadata}
+      />
+      <Composition
+        id="IdentityShell"
+        component={IdentityShell}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={182}
+        calculateMetadata={calculateIdentityShellMetadata}
+      />
+      <Composition
+        id="RootsInWinter"
+        component={RootsInWinter}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={240}
+        calculateMetadata={calculateRootsInWinterMetadata}
+      />
+      <Composition
+        id="RoomToHeal"
+        component={RoomToHeal}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={226}
+        calculateMetadata={calculateRoomToHealMetadata}
+      />
+      <Composition
+        id="InvitationToSlow"
+        component={InvitationToSlow}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={232}
+        calculateMetadata={calculateInvitationToSlowMetadata}
+      />
+      <Composition
+        id="ListenAndVary"
+        component={ListenAndVary}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={230}
+        calculateMetadata={calculateListenAndVaryMetadata}
+      />
+      <Composition
+        id="CrossBracedBody"
+        component={CrossBracedBody}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={248}
+        calculateMetadata={calculateCrossBracedBodyMetadata}
+      />
+      <Composition
+        id="UnattachedGate"
+        component={UnattachedGate}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={228}
+        calculateMetadata={calculateUnattachedGateMetadata}
+      />
+      <Composition
+        id="IdentitySilo"
+        component={IdentitySilo}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={260}
+        calculateMetadata={calculateIdentitySiloMetadata}
+      />
+      <Composition
+        id="CrumblingWall"
+        component={CrumblingWall}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={120}
+        calculateMetadata={calculateCrumblingWallMetadata}
       />
       <Composition
         id="LoadBearingBody"
@@ -118,15 +272,6 @@ export const RemotionRoot: React.FC = () => {
         calculateMetadata={calculateMomentumMeaningMetadata}
       />
       <Composition
-        id="RacingInjuryCycle"
-        component={RacingInjuryCycle}
-        width={1920}
-        height={1080}
-        fps={30}
-        durationInFrames={170}
-        calculateMetadata={calculateRacingInjuryCycleMetadata}
-      />
-      <Composition
         id="PassionIdentityCage"
         component={PassionIdentityCage}
         width={1920}
@@ -136,15 +281,6 @@ export const RemotionRoot: React.FC = () => {
         calculateMetadata={calculatePassionIdentityCageMetadata}
       />
       <Composition
-        id="CrumblingWall"
-        component={CrumblingWall}
-        width={1920}
-        height={1080}
-        fps={30}
-        durationInFrames={120}
-        calculateMetadata={calculateCrumblingWallMetadata}
-      />
-      <Composition
         id="PrisonBars"
         component={PrisonBars}
         width={1920}
@@ -152,6 +288,71 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         durationInFrames={150}
         calculateMetadata={calculatePrisonBarsMetadata}
+      />
+      <Composition
+        id="RacingInjuryCycle"
+        component={RacingInjuryCycle}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={170}
+        calculateMetadata={calculateRacingInjuryCycleMetadata}
+      />
+      <Composition
+        id="ListenToYourBody"
+        component={ListenToYourBody}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={235}
+        calculateMetadata={calculateListenToYourBodyMetadata}
+      />
+      <Composition
+        id="HolisticWheel"
+        component={HolisticWheel}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={178}
+        calculateMetadata={calculateHolisticWheelMetadata}
+      />
+      <Composition
+        id="UnravellingBody"
+        component={UnravellingBody}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={215}
+        calculateMetadata={calculateUnravellingBodyMetadata}
+      />
+    </Folder>
+    <Folder name="Visuals">
+      <Composition
+        id="FinishLine"
+        component={FinishLine}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateFinishLineMetadata}
+      />
+      <Composition
+        id="BlocksTimesThree"
+        component={BlocksTimesThree}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculateBlocksTimesThreeMetadata}
+      />
+      <Composition
+        id="PushUpBlocksReveal"
+        component={PushUpBlocksReveal}
+        width={1920}
+        height={1080}
+        fps={30}
+        durationInFrames={150}
+        calculateMetadata={calculatePushUpBlocksRevealMetadata}
       />
       <Composition
         id="ThreeBlocksReveal"
@@ -307,6 +508,52 @@ export const RemotionRoot: React.FC = () => {
             // short's own title (that's still used for the YouTube upload).
             videoTitle: project.name,
             sourceAspectRatio: project.sourceAspectRatio ?? undefined,
+          }}
+        />
+      ))}
+      </Folder>
+      <Folder name="Reels">
+      {reelProjects.flatMap((reelProject) =>
+        reelProject.reels.map((reel, reelIndex) => ({ reelProject, reel, reelIndex })),
+      ).map(({ reelProject, reel, reelIndex }, index) => (
+        <Composition
+          key={`${reel.id}-${index}`}
+          id={`Reel-${reel.id}-${index}`}
+          component={Reel}
+          width={1080}
+          height={1920}
+          calculateMetadata={calculateReelMetadata}
+          defaultProps={{
+            project: reelProject.id,
+            bpm: reel.bpm,
+            shots: reel.shots,
+            outName: `${reelProject.id}-reel-${String(reelIndex + 1).padStart(2, "0")}-${reel.id}`,
+          }}
+        />
+      ))}
+      </Folder>
+      <Folder name="Clips">
+      {projects.flatMap((project) =>
+        (project.clips ?? []).map((clip, clipIndex) => ({
+          project,
+          clip,
+          clipIndex,
+        })),
+      ).map(({ project, clip, clipIndex }, index) => (
+        <Composition
+          key={`${clip.id}-${index}`}
+          id={`SocialClip-${clip.id}-${index}`}
+          component={SocialClip}
+          width={1920}
+          height={1080}
+          calculateMetadata={calculateSocialClipMetadata}
+          defaultProps={{
+            project: project.id,
+            start: clip.start,
+            end: clip.end,
+            sourceAspectRatio: project.sourceAspectRatio ?? undefined,
+            // clips.json is ordered best first, so the number is the clip's rank.
+            outName: `${project.id}-clip-${String(clipIndex + 1).padStart(2, "0")}-${clip.id}`,
           }}
         />
       ))}

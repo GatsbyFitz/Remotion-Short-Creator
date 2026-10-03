@@ -108,7 +108,7 @@ export const PassionIdentityCage: React.FC = () => {
                   fontFamily: BRAND_FONTS.secondary,
                   fontSize: 72,
                   lineHeight: 1,
-                  color: BRAND_COLORS.black,
+                  color: BRAND_COLORS.light,
                   textShadow: TEXT_SHADOW,
                   opacity: arrowOpacity,
                 }}
@@ -144,7 +144,7 @@ export const PassionIdentityCage: React.FC = () => {
                   style={{
                     position: "absolute",
                     inset: 0,
-                    border: `4px solid ${BRAND_COLORS.black}`,
+                    border: `4px solid ${BRAND_COLORS.light}`,
                     borderRadius: 6,
                     boxShadow: "0 6px 24px rgba(0, 0, 0, 0.45)",
                     opacity: cageProgress,
@@ -177,10 +177,11 @@ export const PassionIdentityCage: React.FC = () => {
                           left: `${((barIndex + 1) / (CAGE_BAR_COUNT + 1)) * 100}%`,
                           width: 6,
                           marginLeft: -3,
-                          // Dark bars over the light word, so the cage reads the
-                          // same way the PrisonBars overlay does.
-                          backgroundColor: BRAND_COLORS.black,
-                          opacity: 0.9,
+                          backgroundColor: BRAND_COLORS.light,
+                          // The word behind is also white, so without an edge the
+                          // bars vanish into the letterforms.
+                          boxShadow: "0 0 7px rgba(0, 0, 0, 0.75)",
+                          opacity: 0.95,
                           transform: `translateY(${barDrop}%)`,
                         }}
                       />

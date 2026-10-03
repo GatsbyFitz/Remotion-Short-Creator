@@ -36,10 +36,24 @@ type Short = {
   }[];
 };
 
+type Clip = {
+  id: string;
+  title: string;
+  start: number;
+  end: number;
+  kind: "spoken" | "visual" | "both";
+  hook: string;
+  curiosity: string;
+  postCaption: string;
+  scores: { total: number } | null;
+  reviewNote?: string;
+};
+
 type Project = {
   id: string;
   name: string;
   shorts: Short[];
+  clips: Clip[];
   renderCount: number;
   uploadedAt: string | null;
   fileSizeBytes: number | null;
@@ -92,6 +106,17 @@ const formatUploadedAt = (uploadedAt: string | null): string => {
     minute: "2-digit",
   }).format(parsed);
 };
+
+const formatClipTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.floor(seconds % 60);
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+};
+
+// Social clips run as their own workflow; every other action belongs to the
+// shorts workflow.
+const workflowEndpoint = (action?: string) =>
+  action === "generateSocialClips" ? "/api/clipsWorkflow" : "/api/shortsWorkflow";
 
 // ==========================================
 // MEDIABUNNY EXTRACTION INTERFACE DEFINITIONS
@@ -550,7 +575,7 @@ const ShortsWorkflow: NextPage = () => {
     setError("");
 
     try {
-      const response = await fetch("/api/shortsWorkflow", {
+      const response = await fetch(workflowEndpoint(action), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project: `${projectName}`, action }),
@@ -881,6 +906,7 @@ const ShortsWorkflow: NextPage = () => {
                           <option value="regenerateInstructions">Regenerate Instructions</option>
                           <option value="refineVisualFraming">Refine Visual Framing</option>
                           <option value="generateYoutubeChapters">Generate YouTube Chapters</option>
+                          <option value="generateSocialClips">Generate Social Clips</option>
                         </select>
                         <Button
                           variant="secondary"
@@ -899,6 +925,9 @@ const ShortsWorkflow: NextPage = () => {
                         </Button>
                         <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${openProject.id}/youtube_chapters.txt`, "_blank")}>
                           View Youtube Chapters
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => window.open(`/projects/${openProject.id}/clips.json`, "_blank")}>
+                          View Clips
                         </Button>
                       </div>
                     </div>
@@ -978,6 +1007,57 @@ const ShortsWorkflow: NextPage = () => {
                       <Card className="border-border bg-card">
                         <CardContent className="py-6 text-center text-sm text-muted-foreground">
                           No shorts yet — run the workflow above to generate some.
+                        </CardContent>
+                      </Card>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold tracking-tight">Social Clips</h3>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Best first. Render them from the Clips folder in Remotion Studio.
+                  </p>
+                  <div className="flex flex-col gap-4">
+                    {openProject.clips.map((clip, index) => (
+                      <Card key={clip.id} className="border-border bg-card">
+                        <CardContent className="space-y-2 pt-6">
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <div className="font-medium text-foreground">
+                              {index + 1}. {clip.title}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatClipTime(clip.start)}–{formatClipTime(clip.end)} · {(clip.end - clip.start).toFixed(1)}s · {clip.kind}
+                              {clip.scores ? ` · ${clip.scores.total.toFixed(1)}/10` : ""}
+                            </div>
+                          </div>
+                          <div className="text-sm text-foreground">
+                            <span className="text-muted-foreground">Hook:</span> {clip.hook}
+                          </div>
+                          <div className="text-sm text-foreground">
+                            <span className="text-muted-foreground">Leaves open:</span> {clip.curiosity}
+                          </div>
+                          {clip.reviewNote ? (
+                            <div className="text-xs text-muted-foreground">Review: {clip.reviewNote}</div>
+                          ) : null}
+                          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                            {clip.postCaption}
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => void navigator.clipboard.writeText(clip.postCaption)}
+                          >
+                            Copy Caption
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {openProject.clips.length === 0 ? (
+                      <Card className="border-border bg-card">
+                        <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                          No clips yet — run Generate Social Clips above.
                         </CardContent>
                       </Card>
                     ) : null}

@@ -11,10 +11,13 @@ type Segment = {
   scale?: number;
 };
 type Short = { id: string; title: string; description: string; youtubeVideoUrl?: string; segments: Segment[] };
+// Written by the clips workflow; see clipsWorkflow/steps/clipsShared.ts for the full shape.
+type Clip = { id: string; title: string; start: number; end: number };
 type Project = {
   id: string;
   name: string;
   shorts: Short[];
+  clips: Clip[];
   renderCount: number;
   uploadedAt: string | null;
   fileSizeBytes: number | null;
@@ -52,6 +55,12 @@ export async function GET() {
       const projectDir = path.join(projectsDir, projectId);
       const instructionsPath = path.join(projectDir, "instructions.json");
       const metadataPath = path.join(projectDir, "metadata.json");
+      const clipsPath = path.join(projectDir, "clips.json");
+
+      // Independent of instructions.json: a project can have clips without shorts.
+      const clips = fs.existsSync(clipsPath)
+        ? ((JSON.parse(fs.readFileSync(clipsPath, "utf-8")) as { clips?: Clip[] }).clips ?? [])
+        : [];
       
       const metadata = fs.existsSync(metadataPath)
         ? JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as {
@@ -85,6 +94,7 @@ export async function GET() {
           id: projectId,
           name: projectName,
           shorts: [],
+          clips,
           renderCount: 0,
           uploadedAt,
           fileSizeBytes,
@@ -102,6 +112,7 @@ export async function GET() {
         id: projectId,
         name: projectName,
         shorts,
+        clips,
         renderCount: shorts.length,
         uploadedAt,
         fileSizeBytes,

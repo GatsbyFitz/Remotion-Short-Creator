@@ -435,29 +435,57 @@ export const VisualFramingSchema = z.object({
   ),
 });
 
+// The footage band in shortCreator/Main.tsx: full composition width by
+// FOOTAGE_HEIGHT_RATIO of its height. Mirrored here so the prompt can tell the
+// model exactly how much of the frame survives the crop.
+export const FOOTAGE_BOX_ASPECT = 1080 / (1920 * 0.8);
+
+// Fraction of the source frame's WIDTH still on screen at a given scale, for a
+// given source aspect ratio. scale 1 is the full edge-to-edge crop; scale 0
+// shows the whole frame letterboxed.
+export const visibleWidthPercent = (scale: number, sourceAspectRatio: number) => {
+  const coverScale = sourceAspectRatio / FOOTAGE_BOX_ASPECT;
+  return Math.round(100 / (1 + scale * (coverScale - 1)));
+};
+
 export const visualFramingPrompt = (
   shortTitle: string,
   shortDescription: string,
   segments: Array<{ index: number; start: number; end: number; segment_purpose?: string }>,
-) => `
+  sourceAspectRatio: number,
+) => {
+  const band = (scale: number) => visibleWidthPercent(scale, sourceAspectRatio);
+
+  return `
 You are doing a visual-framing quality pass on a finished vertical short. For each segment you are shown frames sampled across that segment's own full duration, not just its start or end.
 
 Return only JSON matching the schema. Return exactly one entry per segment listed below, using its exact "index" — do not add, drop, reorder, or merge segments. Echo back each segment's exact "start" and "end" unchanged.
 
-Render geometry (this is what focusX and scale actually control):
-- The source footage is landscape, placed into a vertical band that is narrower than it is tall.
-- At scale = 1 (the default) the footage is cropped edge-to-edge to fill that band. The full height is always visible — nothing is ever cropped at the top or bottom. Only the left and right edges are cropped, so you cannot see the full width of the frame at once.
-- "focusX" (0..1) slides which part of that cropped width stays in view: 0 keeps the LEFT edge of the shot, 1 keeps the RIGHT edge, 0.5 is centred. It only chooses which side to sacrifice — it can never reveal both edges at once.
-- Lowering "scale" below 1 reveals progressively more of the original width, at the cost of empty letterboxed space appearing above and below the footage. At scale = 0 the entire original frame is visible with maximum letterboxing.
+What is actually visible:
+- The source footage is landscape and it is cropped into a tall, narrow window. Nothing is ever cut off at the top or bottom — only at the left and right.
+- At scale = 1, ONLY THE MIDDLE ${band(1)}% OF THE FRAME'S WIDTH IS ON SCREEN. Everything outside that band is cut off completely and cannot be recovered by focusX.
+- Lowering scale widens the visible band, at the cost of empty letterboxed space above and below the footage:
+    scale 1.00 -> middle ${band(1)}% of the width visible
+    scale 0.75 -> middle ${band(0.75)}%
+    scale 0.50 -> middle ${band(0.5)}%
+    scale 0.25 -> middle ${band(0.25)}%
+    scale 0.00 -> the entire frame, 100%
+- focusX slides that band left or right across the frame. It does NOT widen it. focusX 0 puts the band at the left edge, 0.5 centres it, 1 puts it at the right edge.
 
-How to choose:
-- Default to scale = 1. Only lower it when BOTH are true: (a) important on-screen text, a graphic/watermark/readout, or the main subject is visibly cut off at an edge in the sampled frames, AND (b) no single focusX value avoids that clipping — e.g. the content spans both edges at once, or sits in a corner where fixing one side clips the other.
-- Lower scale only as much as needed. A small reduction (0.7-0.85) is usually enough; only approach 0 if content genuinely spans edge to edge.
-- Letterboxing is a visible downgrade from a full-bleed crop, so treat scale < 1 as a last resort, not a style choice.
-- If the subject is centred or already looks fine at scale = 1, set scale = 1 and focusX = 0.5.
+How to choose, per segment:
+1. Look at that segment's frames and identify what must stay in shot: on-screen text, a watch/GPS/data readout, a logo or watermark, a graphic, or the main subject.
+2. Judge roughly where that content sits across the frame's width, as a percentage from the left edge.
+3. Pick the HIGHEST scale whose band is wide enough to contain all of it, then set focusX so the band sits over it.
+4. If it all comfortably fits within the middle ${band(1)}% at a sensible focusX, keep scale = 1.
+
+Notes:
+- Content near BOTH the left and right edges at once cannot be fixed with focusX at any value — that case needs a lower scale.
+- Don't lower scale further than needed; each step costs visible letterboxing.
+- But do not leave scale at 1 when something important is genuinely being cut off. A letterboxed shot that shows the content beats a full-bleed shot that loses it.
 
 Short: "${shortTitle}" — ${shortDescription}
 
 Segments (each segment's frames follow immediately after this listing, in the same index order):
 ${JSON.stringify(segments)}
 `;
+};

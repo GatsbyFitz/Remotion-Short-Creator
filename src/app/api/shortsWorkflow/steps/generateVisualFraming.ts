@@ -46,6 +46,17 @@ export async function generateVisualFraming(project: string) {
     JSON.parse(fs.readFileSync(instructionsPath, "utf-8")),
   );
 
+  // The prompt needs the real crop width, which depends on the source's shape.
+  // Captured at upload; older projects predate it and fall back to 16:9.
+  const metadataPath = `public/projects/${project}/metadata.json`;
+  const metadata = fs.existsSync(metadataPath)
+    ? (JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as { sourceAspectRatio?: number })
+    : null;
+  const sourceAspectRatio =
+    typeof metadata?.sourceAspectRatio === "number" && metadata.sourceAspectRatio > 0
+      ? metadata.sourceAspectRatio
+      : 16 / 9;
+
   const framesManifest = JSON.parse(fs.readFileSync(framesPath, "utf-8"));
   const frames: FrameItem[] = Array.isArray(framesManifest?.frames) ? framesManifest.frames : [];
 
@@ -86,6 +97,7 @@ export async function generateVisualFraming(project: string) {
                       end: s.segment.end,
                       segment_purpose: s.segment.segment_purpose,
                     })),
+                    sourceAspectRatio,
                   ),
                 },
                 ...grounded.flatMap((s) => [
